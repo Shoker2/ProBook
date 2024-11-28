@@ -1,6 +1,7 @@
-OK = "Ok"
+OK = "OK"
 INVALID_TOKEN = "Invalid token"
 FAILED_FETCH_USER_INFO = "Failed to fetch user info"
 AUTHORIZATION_CODE_NOT_FOUND = "Authorization code not found"
 TOKEN_NOT_FOUND = "Token not found"
 TOKEN_HAS_EXPIRED = "Token has expired"
+GROUP_IS_NOT_EXIST = "Group is not exist"

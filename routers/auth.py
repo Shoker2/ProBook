@@ -71,3 +71,10 @@ async def get_me(user: UserToken = Depends(get_current_user)):
         new_token=user.new_token,
         result=user_info_response.json()
     )
+
+@router.get('/info', response_model=BaseTokenResponse[UserRead])
+async def root(user: UserToken = Depends(get_current_user)):
+    return BaseTokenResponse(
+        new_token=user.new_token,
+        result=user
+    )

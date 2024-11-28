@@ -2,13 +2,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional
 from sqlalchemy.future import select
 
-from fastapi import HTTPException, status, Depends, Body, Security
+from fastapi import HTTPException, status, Depends, Body, Security, Request
 from fastapi.security import APIKeyHeader
 import jwt
 from jwt.exceptions import InvalidTokenError, ExpiredSignatureError
 from datetime import datetime, timedelta, timezone
 from ..schemas import *
-from ..models_ import user
+from ..models_ import user, group as group_db
 from ..database import *
 from ..details import *
 from ..config import config
@@ -110,19 +110,38 @@ async def auth_refresh_token(refresh_token: str, session: AsyncSession):
     return await get_token_by_microsoft_access_token(token, session)
 
 # Получение пользователя по UUID
-async def get_user_by_uuid(uuid: str, session: AsyncSession = Depends(get_async_session)) -> UserRead | None:
-    result = await session.execute(select(user.c.uuid, user.c.is_superuser).where(user.c.uuid == uuid))
+async def get_user_by_uuid(uuid: str, session: AsyncSession) -> UserRead | None:
+    result = await session.execute(select(user.c.uuid, user.c.is_superuser, user.c.group_id).where(user.c.uuid == uuid))
     data = result.first()
-    
+
     if data is None:
         return  None
+    
+    group = await get_group_by_id(id=data[2], session=session)
 
     return UserRead(
         uuid=data[0],
-        is_superuser=data[1]
+        is_superuser=data[1],
+        group=group
+    )
+
+async def get_group_by_id(id: int, session: AsyncSession) -> GroupRead | None:
+    stmt = select(group_db.c.name, group_db.c.permissions).where(group_db.c.id == id)
+    data = await session.execute(stmt)
+
+    data = data.first()
+
+    if data is None:
+        return None
+
+    return GroupRead(
+        id=id,
+        name=data[0],
+        permissions=data[1]
     )
 
 async def get_current_user(
+        request: Request,
         token: str = Security(api_key_header),
         session: AsyncSession = Depends(get_async_session),
         repeat: bool = Depends(lambda: True, use_cache=False)
@@ -156,6 +175,7 @@ async def get_current_user(
 
             new_token = await auth_refresh_token(microsoft_refresh_token, session)
             return await get_current_user(
+                request=request,
                 token=new_token.token,
                 session=session,
                 repeat=False
@@ -180,10 +200,15 @@ async def get_current_user(
     if repeat:
         token = None
 
-    return UserToken(
+    user = UserToken(
         uuid=user.uuid,
+        group=user.group,
         microsoft_access_token=microsoft_token,
         microsoft_refresh_token=microsoft_refresh_token,
         is_superuser=user.is_superuser,
         new_token=token
     )
+    
+    request.state.user = user
+
+    return user
