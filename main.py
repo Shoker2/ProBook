@@ -4,11 +4,13 @@ import json
 
 from .routers.auth import router as auth_router
 from .routers.group import router as group_router
+from .routers.event import router as event_router
 from .auth import *
 from .schemas import *
 
+
 app = FastAPI(
-    title = "TP2 API",    
+    title="TP2 API",
 )
 
 app.include_router(
@@ -21,6 +23,10 @@ app.include_router(
     group_router
 )
 
+app.include_router(
+    event_router
+)
+
 # @app.exception_handler(HTTPException)
 # async def http_exception_handler(request: Request, exc: HTTPException):
 #     response_data = {"detail": exc.detail}
@@ -31,6 +37,8 @@ app.include_router(
 #     )
 
 # Валидация наличия new_token
+
+
 async def add_new_token_to_response(request: Request, call_next):
     response = await call_next(request)
 
@@ -41,7 +49,8 @@ async def add_new_token_to_response(request: Request, call_next):
         content_dict = json.loads(b"".join(response_body).decode("utf-8"))
 
         if "new_token" in content_dict and "result" in content_dict and len(content_dict.keys()) == 2:
-            response = JSONResponse(content=content_dict, status_code=response.status_code)
+            response = JSONResponse(
+                content=content_dict, status_code=response.status_code)
         else:
             new_token = getattr(user, "new_token", None)
             content = BaseTokenResponse(
@@ -49,15 +58,15 @@ async def add_new_token_to_response(request: Request, call_next):
                 result=content_dict
             ).model_dump()
 
-            response = JSONResponse(content=content, status_code=response.status_code)
+            response = JSONResponse(
+                content=content, status_code=response.status_code)
 
     return response
+
 
 @app.middleware("http")
 async def add_new_token_middleware(request: Request, call_next):
     return await add_new_token_to_response(request, call_next)
-
-
 
 
 @app.get('/', response_model=BaseTokenResponse[UserRead])

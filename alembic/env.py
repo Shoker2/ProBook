@@ -5,7 +5,6 @@ from sqlalchemy import pool
 
 from alembic import context
 
-
 from models_ import meta_data
 from config import config as config_backend
 
