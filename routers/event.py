@@ -1,10 +1,15 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import (
+    APIRouter,
+    HTTPException,
+    Depends
+)
 from sqlalchemy.ext.asyncio import AsyncSession
 from ..database import get_async_session
 from ..permissions.utils import checking_for_permission
 from ..permissions import Permissions
 from ..schemas.event import (
     EventCreate,
+    EventEdit,
 )
 from ..models_ import (
     event as event_db,
@@ -14,10 +19,14 @@ from ..models_ import (
 from sqlalchemy import (
     insert,
     select,
-    delete
+    delete,
+    update,
 )
 from http import HTTPStatus
-from ..auth import get_current_user, UserToken
+from ..auth import (
+    get_current_user,
+    UserToken,
+)
 
 router = APIRouter(
     prefix="/event",
@@ -26,7 +35,8 @@ router = APIRouter(
 
 
 @router.post(
-    "/create"
+    "/create",
+    response_model=EventCreate
 )
 async def create_event(
     event_data: EventCreate,
@@ -80,7 +90,8 @@ async def create_event(
 
 
 @router.get(
-    "/{id}"
+    "/{id}",
+    response_model=EventCreate
 )
 async def get_event(
     id: int,
@@ -133,4 +144,62 @@ async def delete_event(
     return "OK"
 
 
-# TODO: 1) редактирование - может только создатель события и те у кого есть права на это
+@router.put(
+    "/",
+    response_model=EventEdit
+)
+async def edit_event(
+    event_data: EventEdit,
+    current_user: UserToken = Depends(get_current_user),
+    session: AsyncSession = Depends(get_async_session)
+):
+
+    if event_data.room_id is not None:
+        stmt = select(room_db).where(room_db.c.id == event_data.room_id)
+        result = await session.execute(stmt)
+        room = result.first()
+
+        if not room:
+            raise HTTPException(status_code=HTTPStatus.NOT_FOUND)
+    
+    if event_data.date_start is not None and event_data.date_end is not None:
+        if event_data.date_start > event_data.date_end:
+            raise HTTPException(
+                status_code=HTTPStatus.FORBIDDEN
+            )
+
+    if event_data.date_start is not None:
+        if event_data.date_start.tzinfo is not None:
+            event_data.date_start = event_data.date_start.replace(
+            tzinfo=None)
+
+    if event_data.date_end is not None:
+        if event_data.date_end.tzinfo is not None:
+            event_data.date_end = event_data.date_end.replace(
+                tzinfo=None)
+    
+    event_data = EventEdit(**event_data.model_dump())
+    
+    stmt = select(event_db).where(event_db.c.id == event_data.id)
+    result = await session.execute(stmt)
+    event = result.first()
+
+    if not event:
+        raise HTTPException(
+            status_code=HTTPStatus.NOT_FOUND
+        )
+
+    is_creator = event.user_uuid == current_user.uuid
+    has_permission = checking_for_permission(
+        Permissions.event_edit.value, current_user)
+    if not is_creator or not has_permission:
+        raise HTTPException(
+            status_code=HTTPStatus.FORBIDDEN
+        )
+
+    query = update(event_db).where(event_db.c.id == event_data.id).values(
+        **event_data.model_dump(exclude_none=True))
+    await session.execute(query)
+    await session.commit()
+
+    return event_data

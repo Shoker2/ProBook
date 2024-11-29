@@ -7,3 +7,7 @@ class Permissions(Enum):
     group_view = "group.view"
     
     event_delete = "event_delete"
+    event_edit = "event_edit"
+    
+    coworking_delete = "coworking_delete"
+    coworking_edit = "coworking_edit"

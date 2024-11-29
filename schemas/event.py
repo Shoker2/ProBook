@@ -3,6 +3,7 @@ from datetime import datetime
 from typing import List
 import uuid
 
+
 class EventCreate(BaseModel):
 
     room_id: int
@@ -12,11 +13,21 @@ class EventCreate(BaseModel):
     description: str
     participants: List[uuid.UUID]
     img: str | None = None
-    repeat: str 
+    repeat: str
     date_start: datetime
     date_end: datetime
     moderated: bool = False
-    
-class InternalServerError(BaseModel):
-    message: str
 
+
+class EventEdit(BaseModel):
+    
+    id: int
+    room_id: int | None = None
+    info_for_moderator: str | None = None
+    title: str | None = None
+    description: str | None = None
+    participants: List[uuid.UUID] | None = None
+    img: str | None = None
+    repeat: str | None = None
+    date_start: datetime | None = None
+    date_end: datetime | None = None
