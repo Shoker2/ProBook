@@ -18,3 +18,4 @@ class CoworkingEdit(BaseModel):
     room_id: int | None = None
     info_for_moderator: str | None = None
     date: datetime | None = None
+    moderated: bool | None = None

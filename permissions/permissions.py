@@ -8,6 +8,8 @@ class Permissions(Enum):
     
     event_delete = "event_delete"
     event_edit = "event_edit"
+    event_moderate = "event_moderate"
     
     coworking_delete = "coworking_delete"
     coworking_edit = "coworking_edit"
+    coworking_moderate = "coworking_moderate"

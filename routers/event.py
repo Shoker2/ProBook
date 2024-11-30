@@ -111,6 +111,20 @@ async def get_event(
     return dict(event._mapping)
 
 
+@router.get(
+    "/all",
+    response_model=list[EventCreate]
+)
+async def get_all_events(
+    session: AsyncSession = Depends(get_async_session)
+):
+    query = select(event_db)
+    result = await session.execute(query)
+    events = result.all()
+
+    return [dict(event._mapping) for event in events]
+
+
 @router.delete(
     "/{id}"
 )
@@ -154,6 +168,12 @@ async def edit_event(
     session: AsyncSession = Depends(get_async_session)
 ):
 
+    if event_data.moderated is not None:
+        is_moderator = checking_for_permission(
+            Permissions.event_moderate.value, current_user)
+        if not is_moderator:
+            raise HTTPException(status_code=HTTPStatus.FORBIDDEN)
+    
     if event_data.room_id is not None:
         stmt = select(room_db).where(room_db.c.id == event_data.room_id)
         result = await session.execute(stmt)

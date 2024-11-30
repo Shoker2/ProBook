@@ -31,3 +31,4 @@ class EventEdit(BaseModel):
     repeat: str | None = None
     date_start: datetime | None = None
     date_end: datetime | None = None
+    moderated: bool | None = None

@@ -113,6 +113,20 @@ async def get_coworking(
     return dict(coworking._mapping)
 
 
+@router.get(
+    "/all",
+    response_model=list[CoworkingCreate]
+)
+async def get_all_coworkings(
+    session: AsyncSession = Depends(get_async_session)
+):
+    query = select(coworking_db)
+    result = await session.execute(query)
+    coworkings = result.all()
+
+    return [dict(coworking._mapping) for coworking in coworkings]
+
+
 @router.delete("/{id}")
 async def delete_coworking(
     id: int,
@@ -159,6 +173,12 @@ async def edit_coworking(
     session: AsyncSession = Depends(get_async_session)
 ):
 
+    if coworking_data.moderated is not None:
+        is_moderator = checking_for_permission(
+            Permissions.coworking_moderate.value, current_user)
+        if not is_moderator:
+            raise HTTPException(status_code=HTTPStatus.FORBIDDEN)
+    
     stmt = select(coworking_db).where(
         coworking_db.c.id == coworking_data.id
     )
