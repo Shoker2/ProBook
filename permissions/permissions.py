@@ -14,6 +14,8 @@ class Permissions(Enum):
     coworking_edit = "coworking.edit"
     coworking_moderate = "coworking.moderate"
 
+    permission_view = "coworking.moderate"
+
 PERMISSION_DESC = {
     Permissions.group_create.value: "Creation group",
     Permissions.group_delete.value: "Delete group",
