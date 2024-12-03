@@ -4,7 +4,7 @@ from ..schemas import *
 from ..database import redis_db, get_async_session, create_group as create_group_db, delete_group as delete_group_db
 from ..auth import *
 from ..models_ import group as group_db
-from ..permissions import get_current_user_with_perms, Permissions
+from ..permissions import get_depend_user_with_perms, Permissions
 
 from fastapi import APIRouter, HTTPException, Request, Depends, Body, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -20,7 +20,7 @@ router = APIRouter(
 @router.post('/create', response_model=BaseTokenResponse[GroupRead])
 async def create_group(
         group: GroupCreate,
-        user: UserToken = Depends(partial(get_current_user_with_perms, [Permissions.group_create.value])),
+        user: UserToken = Depends(get_depend_user_with_perms([Permissions.group_create.value])),
         session: AsyncSession = Depends(get_async_session)
     ):
 
@@ -44,7 +44,7 @@ async def create_group(
 @router.get('/{id}', response_model=BaseTokenResponse[GroupRead])
 async def get_group(
         id: int,
-        user: UserToken = Depends(partial(get_current_user_with_perms, [Permissions.group_view.value])),
+        user: UserToken = Depends(get_depend_user_with_perms([Permissions.group_view.value])),
         session: AsyncSession = Depends(get_async_session)
     ):
 
@@ -66,7 +66,7 @@ async def get_group(
 
 @router.get('/', response_model=BaseTokenResponse[list[GroupRead]])
 async def get_all_groups(
-        user: UserToken = Depends(partial(get_current_user_with_perms, [Permissions.group_view.value])),
+        user: UserToken = Depends(get_depend_user_with_perms([Permissions.group_view.value])),
         session: AsyncSession = Depends(get_async_session)
     ):
 
@@ -93,7 +93,7 @@ async def get_all_groups(
 @router.delete('/{id}', response_model=BaseTokenResponse[str])
 async def delete_group(
         id: int,
-        user: UserToken = Depends(partial(get_current_user_with_perms, [Permissions.group_delete.value])),
+        user: UserToken = Depends(get_depend_user_with_perms([Permissions.group_delete.value])),
         session: AsyncSession = Depends(get_async_session)
     ):
 
@@ -110,7 +110,7 @@ async def delete_group(
 @router.put('/', response_model=BaseTokenResponse[str])
 async def update_group(
         group: GroupUpdate,
-        user: UserToken = Depends(partial(get_current_user_with_perms, [Permissions.group_edit.value])),
+        user: UserToken = Depends(get_depend_user_with_perms([Permissions.group_edit.value])),
         session: AsyncSession = Depends(get_async_session)
     ):
 

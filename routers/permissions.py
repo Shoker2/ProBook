@@ -9,7 +9,7 @@ from ..schemas import *
 from ..database import redis_db, get_async_session, create_group as create_group_db, delete_group as delete_group_db
 from ..auth import *
 from ..models_ import group as group_db
-from ..permissions import get_current_user_with_perms, Permissions, PERMISSION_DESC
+from ..permissions import get_depend_user_with_perms, Permissions, PERMISSION_DESC
 
 
 router = APIRouter(
@@ -20,7 +20,7 @@ router = APIRouter(
 @router.get('/{name}', response_model=BaseTokenResponse[PermissionModel])
 async def get_group(
         name: str,
-        user: UserToken = Depends(partial(get_current_user_with_perms, [Permissions.group_view.value]))
+        user: UserToken = Depends(get_depend_user_with_perms([Permissions.group_view.value]))
     ):
 
     if name not in [e.value for e in Permissions]:
@@ -39,7 +39,7 @@ async def get_group(
 
 @router.get('/', response_model=BaseTokenResponse[list[PermissionModel]])
 async def get_all_groups(
-        user: UserToken = Depends(partial(get_current_user_with_perms, [Permissions.group_view.value])),
+        user: UserToken = Depends(get_depend_user_with_perms([Permissions.group_edit.value])),
     ):
 
     permissions: list[PermissionModel] = []

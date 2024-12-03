@@ -1,8 +1,12 @@
 from fastapi import Depends, HTTPException, status, Request
 import re
+from functools import partial
 
 from ..schemas import UserToken
 from ..auth import get_current_user
+
+def get_depend_user_with_perms(needble_permissions: list[str]):
+    return partial(get_current_user_with_perms, needble_permissions)
 
 def get_current_user_with_perms(
         needble_permissions: list[str],

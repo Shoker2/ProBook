@@ -40,11 +40,11 @@ router = APIRouter(
 )
 async def create_coworking(
     coworking_data: CoworkingCreate,
-    current_user: UserToken = Depends(get_current_user),
+    user: UserToken = Depends(get_current_user),
     session: AsyncSession = Depends(get_async_session)
 ):
 
-    if coworking_data.user_uuid != current_user.uuid:
+    if coworking_data.user_uuid != user.uuid:
         raise HTTPException(
             status_code=HTTPStatus.FORBIDDEN
         )
@@ -52,9 +52,8 @@ async def create_coworking(
     user_query = select(user_db).where(
         user_db.c.uuid == coworking_data.user_uuid)
     user_result = await session.execute(user_query)
-    user = user_result.first()
 
-    if not user:
+    if not user_result.first():
         raise HTTPException(
             status_code=HTTPStatus.NOT_FOUND
         )
@@ -130,7 +129,7 @@ async def get_all_coworkings(
 @router.delete("/{id}")
 async def delete_coworking(
     id: int,
-    current_user: UserToken = Depends(get_current_user),
+    user: UserToken = Depends(get_current_user),
     session: AsyncSession = Depends(get_async_session)
 ):
     query = select(coworking_db).where(
@@ -145,9 +144,9 @@ async def delete_coworking(
             status_code=HTTPStatus.NOT_FOUND
         )
 
-    is_creator = coworking.user_uuid == current_user.uuid
+    is_creator = coworking.user_uuid == user.uuid
     has_permission = checking_for_permission(
-        Permissions.coworking_delete.value, current_user)
+        Permissions.coworking_delete.value, user)
 
     if not is_creator or not has_permission:
         raise HTTPException(
@@ -169,13 +168,13 @@ async def delete_coworking(
 )
 async def edit_coworking(
     coworking_data: CoworkingEdit,
-    current_user: UserToken = Depends(get_current_user),
+    user: UserToken = Depends(get_current_user),
     session: AsyncSession = Depends(get_async_session)
 ):
 
     if coworking_data.moderated is not None:
         is_moderator = checking_for_permission(
-            Permissions.coworking_moderate.value, current_user)
+            Permissions.coworking_moderate.value, user)
         if not is_moderator:
             raise HTTPException(status_code=HTTPStatus.FORBIDDEN)
     
@@ -190,9 +189,9 @@ async def edit_coworking(
             status_code=HTTPStatus.NOT_FOUND
         )
 
-    is_creator = coworking.user_uuid == current_user.uuid
+    is_creator = coworking.user_uuid == user.uuid
     has_permission = checking_for_permission(
-        Permissions.coworking_edit.value, current_user)
+        Permissions.coworking_edit.value, user)
 
     if not is_creator or not has_permission:
         raise HTTPException(

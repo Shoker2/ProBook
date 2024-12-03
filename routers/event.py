@@ -40,7 +40,7 @@ router = APIRouter(
 )
 async def create_event(
     event_data: EventCreate,
-    current_user: UserToken = Depends(get_current_user),
+    user: UserToken = Depends(get_current_user),
     session: AsyncSession = Depends(get_async_session)
 ):
 
@@ -49,7 +49,7 @@ async def create_event(
             status_code=HTTPStatus.FORBIDDEN
         )
 
-    if event_data.user_uuid != current_user.uuid:
+    if event_data.user_uuid != user.uuid:
         raise HTTPException(
             status_code=HTTPStatus.FORBIDDEN
         )
@@ -57,9 +57,8 @@ async def create_event(
     user_query = select(user_db).where(
         user_db.c.uuid == event_data.user_uuid)
     user_result = await session.execute(user_query)
-    user = user_result.first()
 
-    if not user:
+    if not user_result.first():
         raise HTTPException(
             status_code=HTTPStatus.NOT_FOUND
         )
@@ -130,7 +129,7 @@ async def get_all_events(
 )
 async def delete_event(
     id: int,
-    current_user: UserToken = Depends(get_current_user),
+    user: UserToken = Depends(get_current_user),
     session: AsyncSession = Depends(get_async_session)
 ):
     query = select(event_db).where(event_db.c.id == id)
@@ -142,9 +141,9 @@ async def delete_event(
             status_code=HTTPStatus.FORBIDDEN
         )
 
-    is_creator = event.user_uuid == current_user.uuid
+    is_creator = event.user_uuid == user.uuid
     has_permission = checking_for_permission(
-        Permissions.event_delete.value, current_user)
+        Permissions.event_delete.value, user)
     if not is_creator or not has_permission:
         raise HTTPException(
             status_code=HTTPStatus.FORBIDDEN
@@ -164,13 +163,13 @@ async def delete_event(
 )
 async def edit_event(
     event_data: EventEdit,
-    current_user: UserToken = Depends(get_current_user),
+    user: UserToken = Depends(get_current_user),
     session: AsyncSession = Depends(get_async_session)
 ):
 
     if event_data.moderated is not None:
         is_moderator = checking_for_permission(
-            Permissions.event_moderate.value, current_user)
+            Permissions.event_moderate.value, user)
         if not is_moderator:
             raise HTTPException(status_code=HTTPStatus.FORBIDDEN)
     
@@ -209,9 +208,9 @@ async def edit_event(
             status_code=HTTPStatus.NOT_FOUND
         )
 
-    is_creator = event.user_uuid == current_user.uuid
+    is_creator = event.user_uuid == user.uuid
     has_permission = checking_for_permission(
-        Permissions.event_edit.value, current_user)
+        Permissions.event_edit.value, user)
     if not is_creator or not has_permission:
         raise HTTPException(
             status_code=HTTPStatus.FORBIDDEN
