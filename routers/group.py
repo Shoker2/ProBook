@@ -1,7 +1,7 @@
 from ..details import *
 from ..config import config
 from ..schemas import *
-from ..database import redis_db, get_async_session, create_group, delete_group as delete_group_db
+from ..database import redis_db, get_async_session, create_group as create_group_db, delete_group as delete_group_db
 from ..auth import *
 from ..models_ import group as group_db
 from ..permissions import get_current_user_with_perms, Permissions
@@ -24,7 +24,7 @@ async def create_group(
         session: AsyncSession = Depends(get_async_session)
     ):
 
-    new_group = await create_group(
+    new_group = await create_group_db(
         name=group.name,
         permissions=group.permissions,
         session=session
@@ -64,9 +64,35 @@ async def get_group(
         result=group
     )
 
-@router.delete('/', response_model=BaseTokenResponse[str])
+@router.get('/', response_model=BaseTokenResponse[list[GroupRead]])
+async def get_all_groups(
+        user: UserToken = Depends(partial(get_current_user_with_perms, [Permissions.group_view.value])),
+        session: AsyncSession = Depends(get_async_session)
+    ):
+
+    stmt = select(group_db.c.id, group_db.c.name, group_db.c.permissions)
+    data = await session.execute(stmt)
+
+    data = data.fetchall()
+
+    groups: list[GroupRead] = []
+    for group in data:
+        groups.append(
+            GroupRead(
+                id=group[0],
+                name=group[1],
+                permissions=group[2]
+            )
+        )
+
+    return BaseTokenResponse(
+        new_token=user.new_token,
+        result=groups
+    )
+
+@router.delete('/{id}', response_model=BaseTokenResponse[str])
 async def delete_group(
-        id: int = Body(embed=True),
+        id: int,
         user: UserToken = Depends(partial(get_current_user_with_perms, [Permissions.group_delete.value])),
         session: AsyncSession = Depends(get_async_session)
     ):

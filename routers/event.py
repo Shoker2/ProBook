@@ -112,7 +112,7 @@ async def get_event(
 
 
 @router.get(
-    "/all",
+    "/",
     response_model=list[EventCreate]
 )
 async def get_all_events(

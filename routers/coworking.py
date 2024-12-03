@@ -114,7 +114,7 @@ async def get_coworking(
 
 
 @router.get(
-    "/all",
+    "/",
     response_model=list[CoworkingCreate]
 )
 async def get_all_coworkings(
