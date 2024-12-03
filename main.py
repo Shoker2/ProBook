@@ -6,6 +6,7 @@ from .routers.auth import router as auth_router
 from .routers.group import router as group_router
 from .routers.event import router as event_router
 from .routers.coworking import router as coworking_router
+from .routers.permissions import router as permissions_router
 from .auth import *
 from .schemas import *
 
@@ -30,6 +31,10 @@ app.include_router(
 
 app.include_router(
     coworking_router
+)
+
+app.include_router(
+    permissions_router
 )
 
 # @app.exception_handler(HTTPException)

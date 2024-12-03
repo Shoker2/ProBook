@@ -1,2 +1,2 @@
-from .permissions import Permissions
+from .permissions import *
 from .utils import *

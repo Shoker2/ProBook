@@ -26,6 +26,7 @@ def get_current_user_with_perms(
     return user
 
 def checking_for_permission(perm: str, user: UserToken) -> bool:
+    perm = str(perm)
     if user.is_superuser:
         return True
     elif user.group is None:

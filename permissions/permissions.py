@@ -6,10 +6,15 @@ class Permissions(Enum):
     group_edit = "group.edit"
     group_view = "group.view"
     
-    event_delete = "event_delete"
-    event_edit = "event_edit"
-    event_moderate = "event_moderate"
+    event_delete = "event.delete"
+    event_edit = "event.edit"
+    event_moderate = "event.moderate"
     
-    coworking_delete = "coworking_delete"
-    coworking_edit = "coworking_edit"
-    coworking_moderate = "coworking_moderate"
+    coworking_delete = "coworking.delete"
+    coworking_edit = "coworking.edit"
+    coworking_moderate = "coworking.moderate"
+
+PERMISSION_DESC = {
+    Permissions.group_create.value: "Creation group",
+    Permissions.group_delete.value: "Delete group",
+}
