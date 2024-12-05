@@ -33,12 +33,23 @@ async def create_group(
     group = GroupRead(
         id=new_group.id,
         name=new_group.name,
-        permissions=new_group.permissions
+        permissions=new_group.permissions,
+        is_default=new_group.is_default
     )
 
     return BaseTokenResponse(
         new_token=user.new_token,
         result=group
+    )
+
+@router.get('/my')
+async def get_my_group(
+        user: UserToken = Depends(get_depend_user_with_perms([Permissions.group_view.value])),
+    ):
+
+    return BaseTokenResponse(
+        new_token=user.new_token,
+        result=user.group
     )
 
 @router.get('/{id}', response_model=BaseTokenResponse[GroupRead])
@@ -70,7 +81,7 @@ async def get_all_groups(
         session: AsyncSession = Depends(get_async_session)
     ):
 
-    stmt = select(group_db.c.id, group_db.c.name, group_db.c.permissions)
+    stmt = select(group_db.c.id, group_db.c.name, group_db.c.permissions, group_db.c.is_default)
     data = await session.execute(stmt)
 
     data = data.fetchall()
@@ -81,7 +92,8 @@ async def get_all_groups(
             GroupRead(
                 id=group[0],
                 name=group[1],
-                permissions=group[2]
+                permissions=group[2],
+                is_default=group[3]
             )
         )
 
@@ -128,6 +140,9 @@ async def update_group(
     
     if group.permissions is not None:
         stmt = stmt.values(permissions=group.permissions)
+    
+    if group.is_default is not None:
+        stmt = stmt.values(is_default=group.is_default)
 
     await session.execute(stmt)
     await session.commit()

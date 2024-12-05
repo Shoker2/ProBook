@@ -118,6 +118,8 @@ async def get_user_by_uuid(uuid: str, session: AsyncSession) -> UserRead | None:
         return  None
     
     group = await get_group_by_id(id=data[2], session=session)
+    if group is None:
+        group = await get_default_group(session=session)
 
     return UserRead(
         uuid=data[0],
@@ -125,8 +127,24 @@ async def get_user_by_uuid(uuid: str, session: AsyncSession) -> UserRead | None:
         group=group
     )
 
+async def get_default_group(session: AsyncSession) -> GroupRead | None:
+    stmt = select(group_db.c.name, group_db.c.permissions, group_db.c.is_default, group_db.c.id).where(group_db.c.is_default == True)
+    data = await session.execute(stmt)
+
+    data = data.first()
+
+    if data is None:
+        return None
+
+    return GroupRead(
+        id=data[3],
+        name=data[0],
+        permissions=data[1],
+        is_default=data[2]
+    )
+
 async def get_group_by_id(id: int, session: AsyncSession) -> GroupRead | None:
-    stmt = select(group_db.c.name, group_db.c.permissions).where(group_db.c.id == id)
+    stmt = select(group_db.c.name, group_db.c.permissions, group_db.c.is_default).where(group_db.c.id == id)
     data = await session.execute(stmt)
 
     data = data.first()
@@ -137,7 +155,8 @@ async def get_group_by_id(id: int, session: AsyncSession) -> GroupRead | None:
     return GroupRead(
         id=id,
         name=data[0],
-        permissions=data[1]
+        permissions=data[1],
+        is_default=data[2]
     )
 
 async def get_current_user(

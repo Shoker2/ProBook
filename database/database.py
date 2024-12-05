@@ -41,6 +41,7 @@ class Group(Base):
     id = Column("id", Integer, primary_key=True)
     name = Column("name", String, nullable=False)
     permissions = Column("permissions", ARRAY(String), nullable=False)
+    is_default = Column("is_default", Boolean, server_default="false", nullable=False)
 
 
 
