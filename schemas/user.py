@@ -9,11 +9,13 @@ class GroupRead(BaseModel):
     id: int
     name: str
     permissions: list[str]
+    is_default: bool
 
 class GroupUpdate(BaseModel):
     id: int
     name: str | None = None
     permissions: list[str] | None = None
+    is_default: bool = None
 
 class UserCreate(BaseModel):
     uuid: uuid.UUID

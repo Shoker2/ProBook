@@ -8,7 +8,8 @@ group = Table(
     meta_data,
     Column("id", Integer, primary_key=True),
     Column("name", String, nullable=False),
-    Column("permissions", ARRAY(String), nullable=False)
+    Column("permissions", ARRAY(String), nullable=False),
+    Column("is_default", Boolean, server_default="false", nullable=False),
 )
 
 user = Table(
