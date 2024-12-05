@@ -3,7 +3,6 @@ from datetime import datetime
 from typing import List
 import uuid
 
-
 class EventCreate(BaseModel):
 
     room_id: int
@@ -32,3 +31,6 @@ class EventEdit(BaseModel):
     date_start: datetime | None = None
     date_end: datetime | None = None
     moderated: bool | None = None
+
+class EventRead(EventEdit):
+    user_uuid: uuid.UUID

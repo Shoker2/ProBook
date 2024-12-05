@@ -4,6 +4,7 @@ from typing import List
 import uuid
 
 
+
 class CoworkingCreate(BaseModel):
     
     room_id : int
@@ -19,3 +20,6 @@ class CoworkingEdit(BaseModel):
     info_for_moderator: str | None = None
     date: datetime | None = None
     moderated: bool | None = None
+
+class CoworkingRead(CoworkingEdit):
+    user_uuid: uuid.UUID

@@ -6,7 +6,9 @@ from fastapi import (
 from ..schemas.coworking import (
     CoworkingCreate,
     CoworkingEdit,
+    CoworkingRead
 )
+from typing import List
 from ..auth import get_current_user
 from ..database import get_async_session
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -89,6 +91,33 @@ async def create_coworking(
     await session.commit()
 
     return coworking_data
+
+
+@router.get(
+    '/my',
+    response_model=List[CoworkingRead]
+)
+async def my_coworkings(
+        current_user: UserToken = Depends(get_current_user),
+        session: AsyncSession = Depends(get_async_session)
+):
+    query = select(coworking_db).where(coworking_db.c.user_uuid == current_user.uuid)
+    result = await session.execute(query)
+    rows = result.fetchall()
+    print(rows)
+    events_info = [
+        CoworkingRead(
+            id=row._mapping["id"],
+            room_id=row._mapping["room_id"],
+            user_uuid=row._mapping["user_uuid"],
+            info_for_moderator=row._mapping["info_for_moderator"],
+            date=row._mapping["date"],
+            moderated=row._mapping["moderated"]
+        )
+        for row in rows
+    ]
+    return events_info
+
 
 
 @router.get(
@@ -220,3 +249,6 @@ async def edit_coworking(
     await session.commit()
 
     return coworking_data
+
+
+

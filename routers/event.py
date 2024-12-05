@@ -8,6 +8,7 @@ from ..database import get_async_session
 from ..permissions.utils import checking_for_permission
 from ..permissions import Permissions
 from ..schemas.event import (
+    EventRead,
     EventCreate,
     EventEdit,
 )
@@ -23,6 +24,7 @@ from sqlalchemy import (
     update,
 )
 from http import HTTPStatus
+from typing import List
 from ..auth import (
     get_current_user,
     UserToken,
@@ -86,6 +88,42 @@ async def create_event(
     await session.commit()
 
     return event_data
+
+
+@router.get(
+    '/my',
+    response_model=List[EventRead]
+)
+async def my_events(
+        current_user: UserToken = Depends(get_current_user),
+        session: AsyncSession = Depends(get_async_session),
+):
+    query = select(event_db).where(event_db.c.user_uuid == current_user.uuid)
+    result = await session.execute(query)
+    rows = result.fetchall()
+
+    events_info = [
+        EventRead(
+            id=row._mapping["id"],
+            room_id=row._mapping["room_id"],
+            info_for_moderator=row._mapping["info_for_moderator"],
+            title=row._mapping["title"],
+            description=row._mapping["description"],
+            participants=row._mapping["participants"],
+            img = row._mapping["img"],
+            repeat = row._mapping["repeat"],
+            user_uuid=row._mapping["user_uuid"],
+            date_start = row._mapping["date_start"],
+            date_end = row._mapping["date_end"],
+            moderated=row._mapping["moderated"]
+        )
+        for row in rows
+    ]
+    return events_info
+
+
+
+
 
 
 @router.get(
@@ -222,3 +260,6 @@ async def edit_event(
     await session.commit()
 
     return event_data
+
+
+
