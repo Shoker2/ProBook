@@ -117,13 +117,13 @@ async def get_user_by_uuid(uuid: str, session: AsyncSession) -> UserRead | None:
     if data is None:
         return  None
     
-    group = await get_group_by_id(id=data[2], session=session)
+    group = await get_group_by_id(id=data.group_id, session=session)
     if group is None:
         group = await get_default_group(session=session)
 
     return UserRead(
-        uuid=data[0],
-        is_superuser=data[1],
+        uuid=data.uuid,
+        is_superuser=data.is_superuser,
         group=group
     )
 
@@ -137,10 +137,10 @@ async def get_default_group(session: AsyncSession) -> GroupRead | None:
         return None
 
     return GroupRead(
-        id=data[3],
-        name=data[0],
-        permissions=data[1],
-        is_default=data[2]
+        id=data.id,
+        name=data.name,
+        permissions=data.permissions,
+        is_default=data.is_default
     )
 
 async def get_group_by_id(id: int, session: AsyncSession) -> GroupRead | None:
@@ -154,9 +154,9 @@ async def get_group_by_id(id: int, session: AsyncSession) -> GroupRead | None:
 
     return GroupRead(
         id=id,
-        name=data[0],
-        permissions=data[1],
-        is_default=data[2]
+        name=data.name,
+        permissions=data.permissions,
+        is_default=data.is_default
     )
 
 async def get_current_user(

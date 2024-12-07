@@ -31,8 +31,8 @@ from ..auth import (
 )
 
 router = APIRouter(
-    prefix="/event",
-    tags=["event"]
+    prefix="/events",
+    tags=["events"]
 )
 
 

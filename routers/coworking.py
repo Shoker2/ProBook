@@ -31,8 +31,8 @@ from ..models_ import (
 )
 
 router = APIRouter(
-    prefix="/coworking",
-    tags=["coworking"]
+    prefix="/coworkings",
+    tags=["coworkings"]
 )
 
 

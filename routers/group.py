@@ -13,8 +13,8 @@ from sqlalchemy import update, select, insert, delete
 from functools import partial
 
 router = APIRouter(
-    prefix="/group",
-    tags=["group"]
+    prefix="/groups",
+    tags=["groups"]
 )
 
 @router.post('/create', response_model=BaseTokenResponse[GroupRead])
@@ -90,10 +90,10 @@ async def get_all_groups(
     for group in data:
         groups.append(
             GroupRead(
-                id=group[0],
-                name=group[1],
-                permissions=group[2],
-                is_default=group[3]
+                id=group.id,
+                name=group.name,
+                permissions=group.permissions,
+                is_default=group.is_default
             )
         )
 
