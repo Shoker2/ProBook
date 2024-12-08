@@ -20,7 +20,7 @@ router = APIRouter(
 @router.post('/create', response_model=BaseTokenResponse[GroupRead])
 async def create_group(
         group: GroupCreate,
-        user: UserToken = Depends(get_depend_user_with_perms([Permissions.group_create.value])),
+        user: UserToken = Depends(get_depend_user_with_perms([Permissions.groups_create.value])),
         session: AsyncSession = Depends(get_async_session)
     ):
 
@@ -44,7 +44,7 @@ async def create_group(
 
 @router.get('/my')
 async def get_my_group(
-        user: UserToken = Depends(get_depend_user_with_perms([Permissions.group_view.value])),
+        user: UserToken = Depends(get_depend_user_with_perms([Permissions.groups_view.value])),
     ):
 
     return BaseTokenResponse(
@@ -55,7 +55,7 @@ async def get_my_group(
 @router.get('/{id}', response_model=BaseTokenResponse[GroupRead])
 async def get_group(
         id: int,
-        user: UserToken = Depends(get_depend_user_with_perms([Permissions.group_view.value])),
+        user: UserToken = Depends(get_depend_user_with_perms([Permissions.groups_view.value])),
         session: AsyncSession = Depends(get_async_session)
     ):
 
@@ -77,7 +77,7 @@ async def get_group(
 
 @router.get('/', response_model=BaseTokenResponse[list[GroupRead]])
 async def get_all_groups(
-        user: UserToken = Depends(get_depend_user_with_perms([Permissions.group_view.value])),
+        user: UserToken = Depends(get_depend_user_with_perms([Permissions.groups_view.value])),
         session: AsyncSession = Depends(get_async_session)
     ):
 
@@ -105,7 +105,7 @@ async def get_all_groups(
 @router.delete('/{id}', response_model=BaseTokenResponse[str])
 async def delete_group(
         id: int,
-        user: UserToken = Depends(get_depend_user_with_perms([Permissions.group_delete.value])),
+        user: UserToken = Depends(get_depend_user_with_perms([Permissions.groups_delete.value])),
         session: AsyncSession = Depends(get_async_session)
     ):
 
@@ -119,10 +119,10 @@ async def delete_group(
         result=OK
     )
 
-@router.put('/', response_model=BaseTokenResponse[str])
+@router.put('/', response_model=BaseTokenResponse[GroupRead])
 async def update_group(
         group: GroupUpdate,
-        user: UserToken = Depends(get_depend_user_with_perms([Permissions.group_edit.value])),
+        user: UserToken = Depends(get_depend_user_with_perms([Permissions.groups_edit.value])),
         session: AsyncSession = Depends(get_async_session)
     ):
 
@@ -147,7 +147,12 @@ async def update_group(
     await session.execute(stmt)
     await session.commit()
 
+    select_statement = select(group_db).where(group_db.c.id == group.id)
+    row = (await session.execute(select_statement)).fetchone()
+
+    result = GroupRead(**row._mapping)
+
     return BaseTokenResponse(
         new_token=user.new_token,
-        result=OK
+        result=result
     )

@@ -1,22 +1,27 @@
 from enum import Enum
 
 class Permissions(Enum):
-    group_create = "group.create"
-    group_delete = "group.delete"
-    group_edit = "group.edit"
-    group_view = "group.view"
+    groups_create = "groups.create"
+    groups_delete = "groups.delete"
+    groups_edit = "groups.edit"
+    groups_view = "groups.view"
     
-    event_delete = "event.delete"
-    event_edit = "event.edit"
-    event_moderate = "event.moderate"
+    events_delete = "event.delete"
+    events_edit = "event.edit"
+    events_moderate = "event.moderate"
     
-    coworking_delete = "coworking.delete"
-    coworking_edit = "coworking.edit"
-    coworking_moderate = "coworking.moderate"
+    coworkings_delete = "coworking.delete"
+    coworkings_edit = "coworking.edit"
+    coworkings_moderate = "coworking.moderate"
 
-    permission_view = "coworking.moderate"
+    permissions_view = "permissions.view"
+
+    items_create = "items.create"
+    items_delete = "items.delete"
+    items_edit = "items.edit"
+    items_view = "items.view"
 
 PERMISSION_DESC = {
-    Permissions.group_create.value: "Creation group",
-    Permissions.group_delete.value: "Delete group",
+    Permissions.groups_create.value: "Creation group",
+    Permissions.groups_delete.value: "Delete group",
 }

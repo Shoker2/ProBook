@@ -20,7 +20,7 @@ router = APIRouter(
 @router.get('/{name}', response_model=BaseTokenResponse[PermissionModel])
 async def get_group(
         name: str,
-        user: UserToken = Depends(get_depend_user_with_perms([Permissions.permission_view.value]))
+        user: UserToken = Depends(get_depend_user_with_perms([Permissions.permissions_view.value]))
     ):
 
     if name not in [e.value for e in Permissions]:
@@ -39,7 +39,7 @@ async def get_group(
 
 @router.get('/', response_model=BaseTokenResponse[list[PermissionModel]])
 async def get_all_groups(
-        user: UserToken = Depends(get_depend_user_with_perms([Permissions.permission_view.value])),
+        user: UserToken = Depends(get_depend_user_with_perms([Permissions.permissions_view.value])),
     ):
 
     permissions: list[PermissionModel] = []

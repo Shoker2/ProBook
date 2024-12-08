@@ -12,6 +12,13 @@ group = Table(
     Column("is_default", Boolean, server_default="false", nullable=False),
 )
 
+item = Table(
+    "item",
+    meta_data,
+    Column("id", Integer, primary_key=True),
+    Column("name", String, nullable=False),
+)
+
 user = Table(
     "user",
     meta_data,
@@ -36,6 +43,7 @@ personal_reservation = Table(
     Column("room_id", ForeignKey("room.id"), nullable=False),
     Column("user_uuid", ForeignKey("user.uuid"), nullable=False),
     Column("info_for_moderator", TEXT, nullable=False),
+    Column("needable_items", ARRAY(Integer), nullable=False, server_default="{}"),
     Column("date", TIMESTAMP, nullable=False),
     Column("moderated", Boolean, nullable=False, server_default="false")
 )
@@ -51,6 +59,7 @@ event = Table(
     Column("title", String, nullable=False),
     Column("description", TEXT, nullable=False),
     Column("participants", ARRAY(UUID), nullable=False, server_default="{}"),
+    Column("needable_items", ARRAY(Integer), nullable=False, server_default="{}"),
     Column("img", String),
     Column("repeat", String),  # No (None) | Every: day, week, two week
 

@@ -181,7 +181,7 @@ async def delete_event(
 
     is_creator = event.user_uuid == user.uuid
     has_permission = checking_for_permission(
-        Permissions.event_delete.value, user)
+        Permissions.events_delete.value, user)
     if not is_creator or not has_permission:
         raise HTTPException(
             status_code=HTTPStatus.FORBIDDEN
@@ -207,7 +207,7 @@ async def edit_event(
 
     if event_data.moderated is not None:
         is_moderator = checking_for_permission(
-            Permissions.event_moderate.value, user)
+            Permissions.events_moderate.value, user)
         if not is_moderator:
             raise HTTPException(status_code=HTTPStatus.FORBIDDEN)
     
@@ -248,7 +248,7 @@ async def edit_event(
 
     is_creator = event.user_uuid == user.uuid
     has_permission = checking_for_permission(
-        Permissions.event_edit.value, user)
+        Permissions.events_edit.value, user)
     if not is_creator or not has_permission:
         raise HTTPException(
             status_code=HTTPStatus.FORBIDDEN
