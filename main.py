@@ -1,13 +1,14 @@
 from fastapi import FastAPI, Depends, Request, HTTPException
 from fastapi.responses import JSONResponse
 import json
-
+from fastapi.staticfiles import StaticFiles
 from .routers.auth import router as auth_router
 from .routers.group import router as group_router
 from .routers.event import router as event_router
 from .routers.coworking import router as coworking_router
 from .routers.permissions import router as permissions_router
 from .routers.item import router as items_router
+from .routers.uploader import router as uploader_router
 from .auth import *
 from .schemas import *
 
@@ -16,29 +17,20 @@ app = FastAPI(
     title="TP2 API",
 )
 
-app.include_router(
-    auth_router
-)
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
-app.include_router(
-    group_router
-)
+routers = [
+    auth_router,
+    group_router,
+    event_router,
+    coworking_router,
+    permissions_router,
+    items_router,
+    uploader_router
+]
 
-app.include_router(
-    event_router
-)
-
-app.include_router(
-    coworking_router
-)
-
-app.include_router(
-    permissions_router
-)
-
-app.include_router(
-    items_router
-)
+for router in routers:
+    app.include_router(router)
 
 # @app.exception_handler(HTTPException)
 # async def http_exception_handler(request: Request, exc: HTTPException):

@@ -1,7 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional
 from sqlalchemy.future import select
-
 from fastapi import HTTPException, status, Depends, Body, Security, Request
 from fastapi.security import APIKeyHeader
 import jwt

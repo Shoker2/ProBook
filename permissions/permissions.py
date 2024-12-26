@@ -21,6 +21,9 @@ class Permissions(Enum):
     items_edit = "items.edit"
     items_view = "items.view"
 
+    file_upload = "file.upload"
+    file_delete = "file.delete"
+
 PERMISSION_DESC = {
     Permissions.groups_create.value: "Creation group",
     Permissions.groups_delete.value: "Delete group",

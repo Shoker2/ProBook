@@ -122,10 +122,6 @@ async def my_events(
     return events_info
 
 
-
-
-
-
 @router.get(
     "/{id}",
     response_model=EventCreate
