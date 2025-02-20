@@ -1,9 +1,10 @@
+
 from ..details import *
 from ..config import config
 from ..schemas import *
 from ..database import redis_db, get_async_session, create_group as create_group_db, delete_group as delete_group_db
 from ..auth import *
-from ..models_ import group as group_db
+from ..models_ import group as group_db, user as user_db
 from ..permissions import get_depend_user_with_perms, Permissions
 
 from fastapi import APIRouter, HTTPException, Request, Depends, Body, status
@@ -155,4 +156,36 @@ async def update_group(
     return BaseTokenResponse(
         new_token=user.new_token,
         result=result
+    )
+
+@router.post('/set_user_group', response_model=BaseTokenResponse[UserRead])
+async def update_group(
+        user_group: UserGroup,
+        user: UserToken = Depends(get_depend_user_with_perms([Permissions.groups_add_user.value])),
+        session: AsyncSession = Depends(get_async_session)
+    ):
+
+    if user_group.group_id is not None:
+        stmt = select(group_db).where(group_db.c.id == user_group.group_id)
+        result = await session.execute(stmt)
+        data = result.first()
+
+        if not data:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
+    
+    stmt = select(user_db).where(user_db.c.uuid == user_group.user_uuid)
+    result = await session.execute(stmt)
+    data = result.first()
+
+    if not data:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
+    
+    stmt = update(user_db).where(user_db.c.uuid == user_group.user_uuid).values(group_id=user_group.group_id)
+
+    await session.execute(stmt)
+    await session.commit()
+
+    return BaseTokenResponse(
+        new_token=user.new_token,
+        result=await get_user_by_uuid(user_group.user_uuid, session)
     )

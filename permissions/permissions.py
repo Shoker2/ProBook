@@ -1,6 +1,8 @@
 from enum import Enum
 
 class Permissions(Enum):
+    groups_add_user = "groups.add_user"
+
     groups_create = "groups.create"
     groups_delete = "groups.delete"
     groups_edit = "groups.edit"
