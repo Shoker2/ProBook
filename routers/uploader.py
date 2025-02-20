@@ -29,7 +29,7 @@ SECRET = config['Miscellaneous']['secret']
 
 @router.post("/upload", response_model=BaseTokenResponse[ImgSave])
 async def upload(
-    current_user: UserToken = Depends(get_depend_user_with_perms([Permissions.file_upload.value])),
+    current_user: UserToken = Depends(get_depend_user_with_perms([Permissions.image_upload.value])),
     file: UploadFile = File(...)
 ):
     data_to_hash = f"{datetime.now().strftime('%Y%m%d%H%M%S')}{current_user.uuid}"
@@ -66,7 +66,7 @@ async def upload(
 @router.delete("/{file_name}", response_model=BaseTokenResponse[ImgDelete])
 async def delete_file(
         file_name: str,
-        current_user: UserToken = Depends(get_depend_user_with_perms([Permissions.file_delete.value]))
+        current_user: UserToken = Depends(get_depend_user_with_perms([Permissions.image_delete.value]))
 ):
     files_list = os.listdir(STATIC_DIR)
 
