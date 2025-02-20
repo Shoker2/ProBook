@@ -8,7 +8,7 @@ from .routers.event import router as event_router
 from .routers.coworking import router as coworking_router
 from .routers.permissions import router as permissions_router
 from .routers.item import router as items_router
-from .routers.uploader import router as uploader_router
+from .routers.uploader import router as uploader_router, STATIC_DIR
 from .auth import *
 from .schemas import *
 
@@ -17,7 +17,7 @@ app = FastAPI(
     title="TP2 API",
 )
 
-app.mount("/static", StaticFiles(directory="static"), name="static")
+app.mount("/images/", StaticFiles(directory=STATIC_DIR), name="img")
 
 routers = [
     auth_router,
