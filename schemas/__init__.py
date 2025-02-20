@@ -4,3 +4,4 @@ from .permissions import *
 from .coworking import *
 from .event import *
 from .item import *
+from .schedule import * 

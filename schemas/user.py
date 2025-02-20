@@ -28,3 +28,7 @@ class UserToken(UserRead):
     microsoft_access_token: str
     microsoft_refresh_token: str
     new_token: str | None
+
+class UserGroup(BaseModel):
+    user_uuid: uuid.UUID
+    group_id: int | None = None

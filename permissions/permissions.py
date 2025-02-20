@@ -1,6 +1,8 @@
 from enum import Enum
 
 class Permissions(Enum):
+    groups_add_user = "groups.add_user"
+
     groups_create = "groups.create"
     groups_delete = "groups.delete"
     groups_edit = "groups.edit"
@@ -21,8 +23,8 @@ class Permissions(Enum):
     items_edit = "items.edit"
     items_view = "items.view"
 
-    file_upload = "file.upload"
-    file_delete = "file.delete"
+    image_upload = "image.upload"
+    image_delete = "image.delete"
 
 PERMISSION_DESC = {
     Permissions.groups_create.value: "Creation group",

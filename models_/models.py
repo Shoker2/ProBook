@@ -1,4 +1,19 @@
-from sqlalchemy import MetaData, Table, Integer, Column, String, TIMESTAMP, ARRAY, Boolean, CheckConstraint, Float, ForeignKey, UUID, TEXT
+from sqlalchemy import (
+    MetaData,
+    Table,
+    Integer,
+    Column,
+    String,
+    TIMESTAMP,
+    ARRAY,
+    Boolean,
+    CheckConstraint,
+    Float,
+    ForeignKey,
+    UUID,
+    TEXT,
+    DATE
+)
 from datetime import datetime
 
 meta_data = MetaData()
@@ -43,7 +58,8 @@ personal_reservation = Table(
     Column("room_id", ForeignKey("room.id"), nullable=False),
     Column("user_uuid", ForeignKey("user.uuid"), nullable=False),
     Column("info_for_moderator", TEXT, nullable=False),
-    Column("needable_items", ARRAY(Integer), nullable=False, server_default="{}"),
+    Column("needable_items", ARRAY(Integer),
+           nullable=False, server_default="{}"),
     Column("date", TIMESTAMP, nullable=False),
     Column("moderated", Boolean, nullable=False, server_default="false")
 )
@@ -59,11 +75,20 @@ event = Table(
     Column("title", String, nullable=False),
     Column("description", TEXT, nullable=False),
     Column("participants", ARRAY(UUID), nullable=False, server_default="{}"),
-    Column("needable_items", ARRAY(Integer), nullable=False, server_default="{}"),
+    Column("needable_items", ARRAY(Integer),
+           nullable=False, server_default="{}"),
     Column("img", String),
     Column("repeat", String),  # No (None) | Every: day, week, two week
 
     Column("date_start", TIMESTAMP, nullable=False),
     Column("date_end", TIMESTAMP, nullable=False),
     Column("moderated", Boolean, nullable=False, server_default="false")
+)
+
+schedule = Table(
+    "schedule",
+    meta_data,
+    Column("id", Integer, primary_key=True),
+    Column("date", DATE, nullable=False),
+    Column("schedule_time", ARRAY(String), nullable=False)
 )

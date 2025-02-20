@@ -15,20 +15,21 @@ from ..schemas.uploader import (
 from ..auth import UserToken
 from datetime import datetime
 from ..config import config
-router = APIRouter(
-    prefix="/uploader",
-    tags=["uploader"]
-)
 from ..permissions import Permissions, get_depend_user_with_perms
 
-static_dir = "./static"
+router = APIRouter(
+    prefix="/img",
+    tags=["img"]
+)
+
+STATIC_DIR = "./static/img"
 ALGORITHM = "HS256"
 SECRET = config['Miscellaneous']['secret']
 
 
 @router.post("/upload", response_model=BaseTokenResponse[ImgSave])
 async def upload(
-    current_user: UserToken = Depends(get_depend_user_with_perms([Permissions.file_upload.value])),
+    current_user: UserToken = Depends(get_depend_user_with_perms([Permissions.image_upload.value])),
     file: UploadFile = File(...)
 ):
     data_to_hash = f"{datetime.now().strftime('%Y%m%d%H%M%S')}{current_user.uuid}"
@@ -40,8 +41,8 @@ async def upload(
     elif file.filename.endswith(".jpg") or file.filename.endswith(".jpeg"):
         type_of_image = ".jpeg"
 
-    file_name = f"{hash_name}"  # сохраняем в переменную
-    new_path = f"static/{file_name}"
+    file_name = str(hash_name) + type_of_image  # сохраняем в переменную
+    new_path = os.path.join(STATIC_DIR, file_name)
 
     try:
         with open(new_path, "wb") as buffer:
@@ -52,7 +53,7 @@ async def upload(
     res = ImgSave(
         date=datetime.utcnow(),
         file_name=file_name,  # используем ту же переменную
-        content_type=file.content_type + {type_of_image}
+        content_type=file.content_type
     )
     
     return BaseTokenResponse(
@@ -62,22 +63,22 @@ async def upload(
 
 
 
-@router.delete("/{file_hash_name}", response_model=BaseTokenResponse[ImgDelete])
+@router.delete("/{file_name}", response_model=BaseTokenResponse[ImgDelete])
 async def delete_file(
-        file_hash_name: str,
-        current_user: UserToken = Depends(get_depend_user_with_perms([Permissions.file_delete.value]))
+        file_name: str,
+        current_user: UserToken = Depends(get_depend_user_with_perms([Permissions.image_delete.value]))
 ):
-    files_list = os.listdir(static_dir)
+    files_list = os.listdir(STATIC_DIR)
 
-    if file_hash_name in files_list:
+    if file_name in files_list:
 
-        file_path = os.path.join(static_dir, file_hash_name)
+        file_path = os.path.join(STATIC_DIR, file_name)
 
         os.remove(file_path)
 
         res = ImgDelete(
             date=datetime.utcnow(),
-            file_name=file_hash_name,
+            file_name=file_name,
             message="File successfully deleted"
         )
         return BaseTokenResponse(
@@ -86,5 +87,3 @@ async def delete_file(
         )
     else:
         raise HTTPException(status_code=404, detail="File doesn't exist")
-
-
