@@ -9,9 +9,16 @@ from .routers.coworking import router as coworking_router
 from .routers.permissions import router as permissions_router
 from .routers.item import router as items_router
 from .routers.uploader import router as uploader_router
+from .routers.schedule import router as schedule_router
 from .auth import *
 from .schemas import *
-
+from sqlalchemy import (
+    select,
+    insert
+)
+from .database import async_session_maker
+from .mock_data import schedule_template
+from .models_ import schedule
 
 app = FastAPI(
     title="TP2 API",
@@ -26,7 +33,8 @@ routers = [
     coworking_router,
     permissions_router,
     items_router,
-    uploader_router
+    uploader_router,
+    schedule_router
 ]
 
 for router in routers:
@@ -80,5 +88,24 @@ async def root(user: UserToken = Depends(get_current_user)):
         new_token=user.new_token,
         result=user
     )
-
 # TODO: Прописать все возвраты для свагера
+
+
+@app.on_event("startup")
+async def startup_event():
+    async with async_session_maker() as session:
+        for date, schedule_times in schedule_template.items():
+
+            date_obj = datetime.strptime(
+                date, '%d.%m.%Y').date()
+
+            query = select(schedule).where(date_obj == schedule.c.date)
+            result = await session.execute(query)
+            schedule_row = result.first()
+            if not schedule_row:
+                stmt = insert(schedule).values(
+                    date=date_obj,
+                    schedule_time=schedule_times
+                )
+                await session.execute(stmt)
+                await session.commit()
