@@ -23,6 +23,10 @@ class Permissions(Enum):
     items_edit = "items.edit"
     items_view = "items.view"
 
+    rooms_create = "rooms.create"
+    rooms_delete = "rooms.delete"
+    rooms_edit = "rooms.edit"
+
     image_upload = "image.upload"
     image_delete = "image.delete"
 

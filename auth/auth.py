@@ -227,6 +227,6 @@ async def get_current_user(
         new_token=token
     )
     
-    request.state.user = user
+    request.state.__auth_user_data = user
 
     return user

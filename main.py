@@ -10,6 +10,7 @@ from .routers.permissions import router as permissions_router
 from .routers.item import router as items_router
 from .routers.uploader import router as uploader_router, STATIC_DIR
 from .routers.schedule import router as schedule_router
+from .routers.room import router as room_router
 from .auth import *
 from .schemas import *
 from sqlalchemy import (
@@ -34,7 +35,8 @@ routers = [
     permissions_router,
     items_router,
     uploader_router,
-    schedule_router
+    schedule_router,
+    room_router
 ]
 
 for router in routers:
@@ -55,7 +57,7 @@ for router in routers:
 async def add_new_token_to_response(request: Request, call_next):
     response = await call_next(request)
 
-    user = getattr(request.state, "user", None)
+    user = getattr(request.state, "__auth_user_data", None)
 
     if user:
         response_body = [chunk async for chunk in response.body_iterator]

@@ -5,3 +5,4 @@ from .coworking import *
 from .event import *
 from .item import *
 from .schedule import * 
+from .room import *
