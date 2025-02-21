@@ -8,6 +8,7 @@ from ..permissions import get_depend_user_with_perms, Permissions
 
 from fastapi import APIRouter, HTTPException, Request, Depends, Body, status
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.exc import IntegrityError
 from httpx_oauth.oauth2 import RefreshTokenError, GetAccessTokenError
 from sqlalchemy import update, select, insert, delete
 from functools import partial
@@ -77,7 +78,19 @@ async def get_all_items(
 
     return result
 
-@router.delete('/{id}', response_model=BaseTokenResponse[str])
+@router.delete(
+    '/{id}',
+    response_model=BaseTokenResponse[str],
+    responses={
+        424: {
+            "content": {
+                "application/json": {
+                    "example": {"new_token": "YOUR_TOKEN", "result":{"detail": ROOM_IS_IN_USE}}
+                }
+            }
+        },
+    }
+)
 async def delete_item(
         id: int,
         user: UserToken = Depends(get_depend_user_with_perms([Permissions.rooms_delete.value])),
@@ -85,8 +98,13 @@ async def delete_item(
     ):
 
     stmt = room_db.delete().where(room_db.c.id == id)
-    await session.execute(stmt)
-
+    try:
+        await session.execute(stmt)
+    except IntegrityError:
+        raise HTTPException(
+            status_code=status.HTTP_424_FAILED_DEPENDENCY,
+            detail=ROOM_IS_IN_USE
+        )
     await session.commit()
 
     return BaseTokenResponse(
