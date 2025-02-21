@@ -16,7 +16,7 @@ class EventCreate(BaseModel):
     date_start: datetime
     date_end: datetime
     moderated: bool = False
-
+    needable_items: List[int] | None = None 
 
 class EventEdit(BaseModel):
     
@@ -31,6 +31,7 @@ class EventEdit(BaseModel):
     date_start: datetime | None = None
     date_end: datetime | None = None
     moderated: bool | None = None
-
+    needable_items: List[int] | None = None 
+    
 class EventRead(EventEdit):
     user_uuid: uuid.UUID

@@ -15,7 +15,8 @@ from ..schemas.event import (
 from ..models_ import (
     event as event_db,
     user as user_db,
-    room as room_db
+    room as room_db,
+    item as item_db
 )
 from sqlalchemy import (
     insert,
@@ -45,13 +46,13 @@ async def create_event(
     user: UserToken = Depends(get_current_user),
     session: AsyncSession = Depends(get_async_session)
 ):
-
-    if event_data.date_start > event_data.date_end:
+    
+    if event_data.user_uuid != user.uuid:
         raise HTTPException(
             status_code=HTTPStatus.FORBIDDEN
         )
-
-    if event_data.user_uuid != user.uuid:
+    
+    if event_data.date_start > event_data.date_end:
         raise HTTPException(
             status_code=HTTPStatus.FORBIDDEN
         )
@@ -74,6 +75,22 @@ async def create_event(
             status_code=HTTPStatus.NOT_FOUND
         )
 
+    
+    if event_data.needable_items:
+        items_query = select(item_db).where(
+            item_db.c.id.in_(event_data.needable_items)
+        )
+        items_result = await session.execute(items_query)
+        found_items = items_result.fetchall()
+        
+        if len(found_items) != len(event_data.needable_items):
+            found_ids = {item.id for item in found_items}
+            missing_ids = set(event_data.needable_items) - found_ids
+            raise HTTPException(
+                status_code = HTTPStatus.NOT_FOUND,
+                detail=f"Предметы с id {missing_ids} не найдены"
+            )
+    
     event_dict = event_data.model_dump()
     if event_dict['date_start'].tzinfo is not None:
         event_dict['date_start'] = event_dict['date_start'].replace(
@@ -230,6 +247,22 @@ async def edit_event(
         if event_data.date_end.tzinfo is not None:
             event_data.date_end = event_data.date_end.replace(
                 tzinfo=None)
+    
+    if event_data.needable_items:
+        items_query = select(item_db).where(
+            item_db.c.id.in_(event_data.needable_items)
+        )
+        items_result = await session.execute(items_query)
+        found_items = items_result.fetchall()
+        
+        if len(found_items) != len(event_data.needable_items):
+            found_ids = {item.id for item in found_items}
+            missing_ids = set(event_data.needable_items) - found_ids
+            raise HTTPException(
+                status_code = HTTPStatus.NOT_FOUND,
+                detail=f"Предметы с id {missing_ids} не найдены"
+            )
+    
     
     event_data = EventEdit(**event_data.model_dump())
     

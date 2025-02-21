@@ -28,6 +28,7 @@ from ..models_ import (
     user as user_db,
     personal_reservation as coworking_db,
     room as room_db,
+    item as item_db,
 )
 
 router = APIRouter(
@@ -51,6 +52,21 @@ async def create_coworking(
             status_code=HTTPStatus.FORBIDDEN
         )
 
+    if coworking_data.needable_items:
+        items_query = select(item_db).where(
+            item_db.c.id.in_(coworking_data.needable_items)
+        )
+        items_result = await session.execute(items_query)
+        found_items = items_result.fetchall()
+        
+        if len(found_items) != len(coworking_data.needable_items):
+            found_ids = {item.id for item in found_items}
+            missing_ids = set(coworking_data.needable_items) - found_ids
+            raise HTTPException(
+                status_code = HTTPStatus.NOT_FOUND,
+                detail=f"Предметы с id {missing_ids} не найдены"
+            )
+    
     user_query = select(user_db).where(
         user_db.c.uuid == coworking_data.user_uuid)
     user_result = await session.execute(user_query)
@@ -239,6 +255,22 @@ async def edit_coworking(
         if coworking_data.date.tzinfo is not None:
             coworking_data.date = coworking_data.date.replace(
                 tzinfo=None)
+    
+    if coworking_data.needable_items:
+        items_query = select(item_db).where(
+            item_db.c.id.in_(coworking_data.needable_items)
+        )
+        items_result = await session.execute(items_query)
+        found_items = items_result.fetchall()
+        
+        if len(found_items) != len(coworking_data.needable_items):
+            found_ids = {item.id for item in found_items}
+            missing_ids = set(coworking_data.needable_items) - found_ids
+            raise HTTPException(
+                status_code = HTTPStatus.NOT_FOUND,
+                detail=f"Предметы с id {missing_ids} не найдены"
+            )
+    
     
     coworking_data = CoworkingEdit(**coworking_data.model_dump())
     
