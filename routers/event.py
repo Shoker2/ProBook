@@ -3,7 +3,9 @@ from fastapi import (
     HTTPException,
     Depends
 )
+from sqlalchemy.dialects.postgresql import ARRAY, UUID as pg_UUID
 from sqlalchemy.ext.asyncio import AsyncSession
+from ..schemas.token import BaseTokenResponse
 from ..database import get_async_session
 from ..permissions.utils import checking_for_permission
 from ..permissions import Permissions
@@ -12,6 +14,7 @@ from ..schemas.event import (
     EventCreate,
     EventEdit,
 )
+from uuid import UUID
 from ..models_ import (
     event as event_db,
     user as user_db,
@@ -23,6 +26,8 @@ from sqlalchemy import (
     select,
     delete,
     update,
+    cast,
+    or_
 )
 from http import HTTPStatus
 from typing import List
@@ -291,4 +296,169 @@ async def edit_event(
     return event_data
 
 
+@router.post("/participate/{id}", response_model=BaseTokenResponse[int])
+async def participate_in_event(
+    id: int,
+    user: UserToken = Depends(get_current_user),
+    session: AsyncSession = Depends(get_async_session)
+):
+    query = select(event_db).where(event_db.c.id == id)
+    result = await session.execute(query)
+    event = result.first()
 
+    if not event:
+        raise HTTPException(
+            status_code = HTTPStatus.NOT_FOUND,
+            detail="Мероприятие не найдено"
+        )
+    
+    if event.user_uuid == user.uuid:
+        raise HTTPException(
+            status_code = HTTPStatus.BAD_REQUEST, 
+            detail="Вы являетесь создателем мероприятия"
+        )
+    
+    participants = list(event.participants) if event.participants else []
+    if str(user.uuid) in [str(uuid) for uuid in participants]:
+        raise HTTPException(
+            status_code = HTTPStatus.BAD_REQUEST,
+            detail="Вы уже участвуете в этом мероприятии"
+        )
+    
+    participants.append(user.uuid)
+    
+    stmt = update(event_db).where(event_db.c.id == id).values(participants=participants)
+    await session.execute(stmt)
+    await session.commit()
+    
+    return BaseTokenResponse(
+        new_token=user.new_token,
+        result=id
+    )
+
+@router.post("/unparticipate/{id}", response_model=BaseTokenResponse[int])
+async def unparticipate_from_event(
+    id: int,
+    user: UserToken = Depends(get_current_user),
+    session: AsyncSession = Depends(get_async_session)
+):
+    query = select(event_db).where(event_db.c.id == id)
+    result = await session.execute(query)
+    event = result.first() 
+    
+    if not event:
+        raise HTTPException(
+            status_code = HTTPStatus.NOT_FOUND, 
+            detail="Мероприятие не найдено"
+        )
+
+    if event.user_uuid == user.uuid:
+        raise HTTPException(
+            status_code= HTTPStatus.BAD_REQUEST, 
+            detail="Вы являетесь создателем мероприятия"
+        )    
+    
+    participants = list(event.participants) if event.participants else []
+    
+    if str(user.uuid) not in [str(uuid) for uuid in participants]:
+        raise HTTPException(
+            status_code = HTTPStatus.BAD_REQUEST,
+            detail="Вы не участвуете в этом мероприятии"
+        )
+    
+    participants.remove(user.uuid)
+    stmt = update(event_db).where(event_db.c.id == id).values(participants=participants)
+    await session.execute(stmt)
+    await session.commit()
+    
+    return BaseTokenResponse(
+        new_token=user.new_token,
+        result=id
+    )
+
+
+@router.get("/participation/my",response_model=BaseTokenResponse[List[EventRead]])
+async def get_my_participated_events(
+    user: UserToken = Depends(get_current_user),
+    session: AsyncSession = Depends(get_async_session)
+):
+    query = select(event_db).where(
+        or_(
+            cast(event_db.c.participants, ARRAY(pg_UUID)).contains([user.uuid]),
+            event_db.c.user_uuid == user.uuid
+        )
+    )
+    result = await session.execute(query)
+    events = result.fetchall()
+    
+    events_list = [
+        EventRead(
+            id=event.id,
+            room_id=event.room_id,
+            info_for_moderator=event.info_for_moderator,
+            title=event.title,
+            description=event.description,
+            participants=event.participants,
+            img=event.img,
+            repeat=event.repeat,
+            user_uuid=event.user_uuid,
+            date_start=event.date_start, 
+            date_end=event.date_end,
+            moderated=event.moderated,
+            needable_items=event.needable_items
+        )
+        for event in events
+    ]
+    
+    return BaseTokenResponse(
+        new_token=user.new_token,
+        result=events_list
+    )
+    
+    
+@router.get("/participation/{uuid}", response_model=BaseTokenResponse[List[EventRead]])
+async def get_user_participated_events(
+    uuid: UUID,
+    user: UserToken = Depends(get_current_user),
+    session: AsyncSession = Depends(get_async_session)
+):
+    user_query = select(user_db).where(user_db.c.uuid == uuid)
+    user_result = await session.execute(user_query)
+    if not user_result.first():
+        raise HTTPException(
+            status_code=HTTPStatus.NOT_FOUND,
+            detail="Пользователь не найден"
+        )
+        
+    query = select(event_db).where(
+        or_(
+            cast(event_db.c.participants, ARRAY(pg_UUID)).contains([uuid]),
+            event_db.c.user_uuid == uuid
+        )
+    )
+    
+    result = await session.execute(query)
+    events = result.fetchall()
+    
+    events_list = [
+        EventRead(
+            id=event.id,
+            room_id=event.room_id,
+            info_for_moderator=event.info_for_moderator,
+            title=event.title,
+            description=event.description,
+            participants=event.participants,
+            img=event.img,
+            repeat=event.repeat,
+            user_uuid=event.user_uuid,
+            date_start=event.date_start, 
+            date_end=event.date_end,
+            moderated=event.moderated,
+            needable_items=event.needable_items
+        )
+        for event in events
+    ]
+    return BaseTokenResponse(
+        new_token=user.new_token,
+        result=events_list
+    )
