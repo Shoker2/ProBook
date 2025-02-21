@@ -22,7 +22,7 @@ router = APIRouter(
     tags=["img"]
 )
 
-STATIC_DIR = "./static/img"
+STATIC_IMAGES_DIR = "./static/img"
 ALGORITHM = "HS256"
 SECRET = config['Miscellaneous']['secret']
 
@@ -42,7 +42,7 @@ async def upload(
         type_of_image = ".jpeg"
 
     file_name = str(hash_name) + type_of_image  # сохраняем в переменную
-    new_path = os.path.join(STATIC_DIR, file_name)
+    new_path = os.path.join(STATIC_IMAGES_DIR, file_name)
 
     try:
         with open(new_path, "wb") as buffer:
@@ -68,11 +68,11 @@ async def delete_file(
         file_name: str,
         current_user: UserToken = Depends(get_depend_user_with_perms([Permissions.image_delete.value]))
 ):
-    files_list = os.listdir(STATIC_DIR)
+    files_list = os.listdir(STATIC_IMAGES_DIR)
 
     if file_name in files_list:
 
-        file_path = os.path.join(STATIC_DIR, file_name)
+        file_path = os.path.join(STATIC_IMAGES_DIR, file_name)
 
         os.remove(file_path)
 

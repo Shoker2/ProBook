@@ -8,6 +8,7 @@ from ..permissions import get_depend_user_with_perms, Permissions
 
 from fastapi import APIRouter, HTTPException, Request, Depends, Body, status
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.exc import IntegrityError
 from httpx_oauth.oauth2 import RefreshTokenError, GetAccessTokenError
 from sqlalchemy import update, select, insert, delete
 from functools import partial
@@ -83,7 +84,19 @@ async def get_all_items(
         result=result
     )
 
-@router.delete('/{id}', response_model=BaseTokenResponse[str])
+@router.delete(
+    '/{id}',
+    response_model=BaseTokenResponse[str],
+    responses={
+        424: {
+            "content": {
+                "application/json": {
+                    "example": {"new_token": "YOUR_TOKEN", "result":{"detail": ITEM_IS_IN_USE}}
+                }
+            }
+        },
+    }
+)
 async def delete_item(
         id: int,
         user: UserToken = Depends(get_depend_user_with_perms([Permissions.items_delete.value])),
@@ -91,7 +104,15 @@ async def delete_item(
     ):
 
     select_statement = item_db.delete().where(item_db.c.id == id)
-    await session.execute(select_statement)
+
+    try:
+        await session.execute(select_statement)
+    except IntegrityError:
+        raise HTTPException(
+            status_code=status.HTTP_424_FAILED_DEPENDENCY,
+            detail=ITEM_IS_IN_USE
+        )
+    
     await session.commit()
 
     return BaseTokenResponse(
