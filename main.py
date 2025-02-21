@@ -1,6 +1,7 @@
 from fastapi import FastAPI, Depends, Request, HTTPException
 from fastapi.responses import JSONResponse
 import json
+import os
 from fastapi.staticfiles import StaticFiles
 from .routers.auth import router as auth_router
 from .routers.group import router as group_router
@@ -8,7 +9,7 @@ from .routers.event import router as event_router
 from .routers.coworking import router as coworking_router
 from .routers.permissions import router as permissions_router
 from .routers.item import router as items_router
-from .routers.uploader import router as uploader_router, STATIC_DIR
+from .routers.uploader import router as uploader_router, STATIC_IMAGES_DIR
 from .routers.schedule import router as schedule_router
 from .routers.room import router as room_router
 from .auth import *
@@ -21,11 +22,14 @@ from .database import async_session_maker
 from .mock_data import schedule_template
 from .models_ import schedule
 
+
 app = FastAPI(
     title="TP2 API",
 )
 
-app.mount("/images/", StaticFiles(directory=STATIC_DIR), name="img")
+if not os.path.exists(STATIC_IMAGES_DIR):
+    os.makedirs(STATIC_IMAGES_DIR)
+app.mount("/images/", StaticFiles(directory=STATIC_IMAGES_DIR), name="img")
 
 routers = [
     auth_router,

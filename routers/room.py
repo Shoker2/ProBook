@@ -84,12 +84,6 @@ async def delete_item(
         session: AsyncSession = Depends(get_async_session)
     ):
 
-    stmt = event_db.delete().where(event_db.c.room_id == id)
-    await session.execute(stmt)
-
-    stmt = personal_reservation_db.delete().where(personal_reservation_db.c.room_id == id)
-    await session.execute(stmt)
-
     stmt = room_db.delete().where(room_db.c.id == id)
     await session.execute(stmt)
 
