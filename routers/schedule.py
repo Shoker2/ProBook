@@ -21,9 +21,10 @@ from sqlalchemy import cast, Date
 from ..permissions import Permissions, get_depend_user_with_perms
 from ..details import *
 from ..models_ import schedule
-from ..schemas import ScheduleItem, ScheduleResponse, TemplateScheduleUpdate, CreateSchedule
-from datetime import datetime, timedelta
-from ..shared import get_week_dates
+from ..schemas import ScheduleItem, ScheduleResponse, TemplateScheduleUpdate, CreateSchedule, TemplateResponse, TemplateItem
+from datetime import datetime, timedelta, date
+from ..shared import get_week_dates, validate_time_intervals
+
 
 SCHEDULE_TEMPLATE = {
     1: "1000-01-01",
@@ -42,7 +43,7 @@ router = APIRouter(
 )
 
 
-@router.get("/template", response_model=ScheduleResponse)
+@router.get("/template", response_model=TemplateResponse)
 async def get_template(
     session: AsyncSession = Depends(get_async_session)
 ):
@@ -56,15 +57,17 @@ async def get_template(
     result = await session.execute(query)
     schedules = result.fetchall()
     
+    date_to_day = {v: k for k, v in SCHEDULE_TEMPLATE.items()}
+    
     schedule_items = [
-        ScheduleItem(
-            date=row.date.isoformat(),
+        TemplateItem(
+            day_number=date_to_day[row.date.strftime('%Y-%m-%d')],
             schedule_time=row.schedule_time
         )
         for row in schedules
     ]
 
-    return ScheduleResponse(result=schedule_items)
+    return TemplateResponse(result=schedule_items)
 
 
 @router.put("/template", response_model=BaseTokenResponse[ScheduleResponse])
@@ -73,6 +76,15 @@ async def update_template(
     current_user: UserToken = Depends(get_depend_user_with_perms([Permissions.template_change.value])),
     session: AsyncSession = Depends(get_async_session)
 ):
+    
+    try:
+        validate_time_intervals(update_data.schedule_time)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail=str(exc)
+        )
+    
     if update_data.day_number not in SCHEDULE_TEMPLATE:
         raise HTTPException(
             status_code=HTTPStatus.BAD_REQUEST,
@@ -116,14 +128,16 @@ async def create_schedule(
     current_user: UserToken = Depends(get_current_user),
     session: AsyncSession = Depends(get_async_session)
 ):
-    try:
-        date_obj = datetime.strptime(schedule_data.date, '%Y-%m-%d').date()
     
-    except ValueError:
+    try:
+        validate_time_intervals(schedule_data.schedule_time)
+    except ValueError as exc:
         raise HTTPException(
             status_code=HTTPStatus.BAD_REQUEST,
-            detail=INVALID_DATE    
+            detail=str(exc),
         )
+    
+    date_obj = schedule_data.date
         
     query = select(schedule).where(schedule.c.date == date_obj)
     result = await session.execute(query)
@@ -159,18 +173,19 @@ async def create_schedule(
 
 @router.delete("/{date}", response_model=BaseTokenResponse[ScheduleResponse])
 async def delete_schedule(
-    date: str, 
+    date: date, 
     current_user: UserToken = Depends(get_depend_user_with_perms(Permissions.schedule_delete.value)),
     session: AsyncSession = Depends(get_async_session)
 ):
-    try:
-        date_obj = datetime.strptime(date, '%Y-%m-%d').date()
     
-    except ValueError:
+    template_dates = set(SCHEDULE_TEMPLATE.values())
+    if date.strftime("%Y-%m-%d") in template_dates:
         raise HTTPException(
             status_code=HTTPStatus.BAD_REQUEST,
-            detail=INVALID_DATE    
+            detail=TEMPLATE_DELETED
         )
+    
+    date_obj = date
         
     query = select(schedule).where(schedule.c.date == date_obj)
     result = await session.execute(query)
@@ -189,7 +204,7 @@ async def delete_schedule(
     response = ScheduleResponse(
         result=[
             ScheduleItem(
-                date=date,
+                date=date_obj,
                 schedule_time=existing_schedule.schedule_time
             )
         ]
@@ -201,13 +216,16 @@ async def delete_schedule(
     )
 
 
-@router.get("/week/{date}", response_model=ScheduleResponse)
+@router.get("/week", response_model=ScheduleResponse)
 async def get_week_schedule(
-    date: str,
+    date: date | None = None,
     session: AsyncSession = Depends(get_async_session)
 ):
+    
+    target_date = datetime.now().date() if not date else date
+    
     try:
-        monday, sunday = get_week_dates(date)
+        monday, sunday = get_week_dates(target_date)
     except ValueError:
         raise HTTPException(
             status_code=HTTPStatus.BAD_REQUEST,
@@ -240,7 +258,7 @@ async def get_week_schedule(
             row = existing_dates[current_date]
             schedule_items.append(
                 ScheduleItem(
-                    date=row.date.isoformat(),
+                    date=row.date,
                     schedule_time=row.schedule_time
                 )
             )
@@ -248,7 +266,7 @@ async def get_week_schedule(
             template_row = template_schedule[template_idx]
             schedule_items.append(
                 ScheduleItem(
-                    date=current_date.isoformat(),
+                    date=current_date,
                     schedule_time=template_row.schedule_time
                 )
             )

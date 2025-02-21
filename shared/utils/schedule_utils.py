@@ -1,11 +1,17 @@
 from datetime import datetime, timedelta
+import re
+from datetime import date
 
+def get_week_dates(date_obj: date) -> tuple[date, date]:
+    current_weekday = date_obj.weekday()
 
-def get_week_dates(date_str: str) -> tuple[datetime.date, datetime.date]:
-    current_date = datetime.strptime(date_str, '%Y-%m-%d').date()
-    current_weekday = current_date.weekday()
-
-    monday = current_date - timedelta(days=current_weekday)
+    monday = date_obj - timedelta(days=current_weekday)
     sunday = monday + timedelta(days=6)
 
     return monday, sunday
+
+def validate_time_intervals(schedule_times: list[str]) -> None:
+    pattern = re.compile(r"^([0-1]?\d|2[0-3]):[0-5]\d-([0-1]?\d|2[0-3]):[0-5]\d$")
+    for interval in schedule_times:
+        if not pattern.match(interval):
+            raise ValueError(f"Invalid time interval format: {interval}")
