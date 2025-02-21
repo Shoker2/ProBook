@@ -26,6 +26,10 @@ class Permissions(Enum):
     image_upload = "image.upload"
     image_delete = "image.delete"
 
+    template_change = "template.change"
+    schedule_create = "schedule.create"
+    schedule_delete = "schedule.delete"
+    
 PERMISSION_DESC = {
     Permissions.groups_create.value: "Creation group",
     Permissions.groups_delete.value: "Delete group",

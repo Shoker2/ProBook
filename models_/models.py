@@ -88,7 +88,6 @@ event = Table(
 schedule = Table(
     "schedule",
     meta_data,
-    Column("id", Integer, primary_key=True),
-    Column("date", DATE, nullable=False),
+    Column("date", DATE, nullable=False, primary_key=True),
     Column("schedule_time", ARRAY(String), nullable=False)
 )
