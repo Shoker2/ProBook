@@ -21,7 +21,6 @@ class Permissions(Enum):
     items_create = "items.create"
     items_delete = "items.delete"
     items_edit = "items.edit"
-    items_view = "items.view"
 
     rooms_create = "rooms.create"
     rooms_delete = "rooms.delete"

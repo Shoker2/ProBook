@@ -42,7 +42,6 @@ async def create_item(
 @router.get('/{id}', response_model=BaseTokenResponse[ItemRead])
 async def get_item(
         id: int,
-        user: UserToken = Depends(get_depend_user_with_perms([Permissions.items_view.value])),
         session: AsyncSession = Depends(get_async_session)
     ):
 
@@ -63,7 +62,6 @@ async def get_item(
 
 @router.get('/', response_model=BaseTokenResponse[list[ItemRead]])
 async def get_all_items(
-        user: UserToken = Depends(get_depend_user_with_perms([Permissions.permissions_view.value])),
         session: AsyncSession = Depends(get_async_session)
     ):
 
