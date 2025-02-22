@@ -27,7 +27,9 @@ from sqlalchemy import (
     delete,
     update,
     cast,
-    or_
+    or_,
+    and_,
+    func
 )
 from http import HTTPStatus
 from typing import List
@@ -104,6 +106,35 @@ async def create_event(
         event_dict['date_end'] = event_dict['date_end'].replace(
             tzinfo=None)
 
+    overlapping_events_query = select(event_db).where(
+        and_(
+            event_db.c.room_id == event_data.room_id,
+            func.date(event_db.c.date_start) == func.date(
+                event_dict['date_start']),
+            or_(
+                and_(
+                    event_db.c.date_start <= event_dict['date_start'],
+                    event_db.c.date_end > event_dict['date_start']
+                ),
+                and_(
+                    event_db.c.date_start < event_dict['date_end'],
+                    event_db.c.date_end >= event_dict['date_end']
+                ),
+                and_(
+                    event_db.c.date_start >= event_dict['date_start'],
+                    event_db.c.date_end <= event_dict['date_end']
+                )
+            )
+        )
+    )
+
+    result = await session.execute(overlapping_events_query)
+    if result.first():
+        raise HTTPException(
+            status_code=HTTPStatus.CONFLICT,
+            detail=ROOM_IS_ALREADY
+        )
+
     query = insert(event_db).values(**event_dict)
     await session.execute(query)
     await session.commit()
@@ -140,17 +171,17 @@ async def my_events(
             needable_items=row._mapping.get("needable_items", [])
         )
         for row in rows
-        ]
+    ]
     return events_info
 
 
-@ router.get(
+@router.get(
     "/{id}",
     response_model=EventRead
 )
 async def get_event(
     id: int,
-    session: AsyncSession=Depends(get_async_session)
+    session: AsyncSession = Depends(get_async_session)
 ):
 
     query = select(event_db).where(event_db.c.id == id)
@@ -167,12 +198,12 @@ async def get_event(
     return dict(event._mapping)
 
 
-@ router.get(
+@router.get(
     "/",
     response_model=list[EventRead]
 )
 async def get_all_events(
-    session: AsyncSession=Depends(get_async_session)
+    session: AsyncSession = Depends(get_async_session)
 ):
     query = select(event_db)
     result = await session.execute(query)
@@ -181,13 +212,13 @@ async def get_all_events(
     return [dict(event._mapping) for event in events]
 
 
-@ router.delete(
+@router.delete(
     "/{id}"
 )
 async def delete_event(
     id: int,
-    user: UserToken=Depends(get_current_user),
-    session: AsyncSession=Depends(get_async_session)
+    user: UserToken = Depends(get_current_user),
+    session: AsyncSession = Depends(get_async_session)
 ):
     query = select(event_db).where(event_db.c.id == id)
     result = await session.execute(query)
@@ -216,14 +247,14 @@ async def delete_event(
     return "OK"
 
 
-@ router.put(
+@router.put(
     "/",
     response_model=EventEdit
 )
 async def edit_event(
     event_data: EventEdit,
-    user: UserToken=Depends(get_current_user),
-    session: AsyncSession=Depends(get_async_session)
+    user: UserToken = Depends(get_current_user),
+    session: AsyncSession = Depends(get_async_session)
 ):
 
     if event_data.moderated is not None:
@@ -298,6 +329,37 @@ async def edit_event(
             detail=PERMISSION_IS_NOT_EXIST
         )
 
+    if event_data.date_start is not None and event_data.date_end is not None:
+        overlapping_events_query = select(event_db).where(
+            and_(
+                event_db.c.id != event_data.id,
+                event_db.c.room_id == event_data.room_id,
+                func.date(event_db.c.date_start) == func.date(
+                    event_data.date_start),
+                or_(
+                    and_(
+                        event_db.c.date_start <= event_data.date_start,
+                        event_db.c.date_end > event_data.date_start
+                    ),
+                    and_(
+                        event_db.c.date_start < event_data.date_end,
+                        event_db.c.date_end >= event_data.date_end
+                    ),
+                    and_(
+                        event_db.c.date_start >= event_data.date_start,
+                        event_db.c.date_end <= event_data.date_end
+                    )
+                )
+            )
+        )
+
+        result = await session.execute(overlapping_events_query)
+        if result.first():
+            raise HTTPException(
+                status_code=HTTPStatus.CONFLICT,
+                detail=ROOM_IS_ALREADY
+            )
+    
     query = update(event_db).where(event_db.c.id == event_data.id).values(
         **event_data.model_dump(exclude_none=True))
     await session.execute(query)
@@ -306,11 +368,11 @@ async def edit_event(
     return event_data
 
 
-@ router.post("/participate/{id}", response_model=BaseTokenResponse[int])
+@router.post("/participate/{id}", response_model=BaseTokenResponse[int])
 async def participate_in_event(
     id: int,
-    user: UserToken=Depends(get_current_user),
-    session: AsyncSession=Depends(get_async_session)
+    user: UserToken = Depends(get_current_user),
+    session: AsyncSession = Depends(get_async_session)
 ):
     query = select(event_db).where(event_db.c.id == id)
     result = await session.execute(query)
@@ -348,11 +410,11 @@ async def participate_in_event(
     )
 
 
-@ router.post("/unparticipate/{id}", response_model=BaseTokenResponse[int])
+@router.post("/unparticipate/{id}", response_model=BaseTokenResponse[int])
 async def unparticipate_from_event(
     id: int,
-    user: UserToken=Depends(get_current_user),
-    session: AsyncSession=Depends(get_async_session)
+    user: UserToken = Depends(get_current_user),
+    session: AsyncSession = Depends(get_async_session)
 ):
     query = select(event_db).where(event_db.c.id == id)
     result = await session.execute(query)
@@ -390,10 +452,10 @@ async def unparticipate_from_event(
     )
 
 
-@ router.get("/participation/my", response_model=BaseTokenResponse[List[EventRead]])
+@router.get("/participation/my", response_model=BaseTokenResponse[List[EventRead]])
 async def get_my_participated_events(
-    user: UserToken=Depends(get_current_user),
-    session: AsyncSession=Depends(get_async_session)
+    user: UserToken = Depends(get_current_user),
+    session: AsyncSession = Depends(get_async_session)
 ):
     query = select(event_db).where(
         or_(
@@ -430,11 +492,11 @@ async def get_my_participated_events(
     )
 
 
-@ router.get("/participation/{uuid}", response_model=BaseTokenResponse[List[EventRead]])
+@router.get("/participation/{uuid}", response_model=BaseTokenResponse[List[EventRead]])
 async def get_user_participated_events(
     uuid: UUID,
-    user: UserToken=Depends(get_current_user),
-    session: AsyncSession=Depends(get_async_session)
+    user: UserToken = Depends(get_current_user),
+    session: AsyncSession = Depends(get_async_session)
 ):
     user_query = select(user_db).where(user_db.c.uuid == uuid)
     user_result = await session.execute(user_query)

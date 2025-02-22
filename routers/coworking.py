@@ -21,6 +21,9 @@ from sqlalchemy import (
     insert,
     delete,
     update,
+    or_,
+    and_,
+    func
 )
 from ..permissions import (
     checking_for_permission,
@@ -80,18 +83,6 @@ async def create_coworking(
             detail=USER_NOT_FOUND
         )
 
-    coworking_query = select(coworking_db).where(
-        coworking_db.c.room_id == coworking_data.room_id
-    )
-    coworking_result = await session.execute(coworking_query)
-    coworking = coworking_result.first()
-
-    if coworking:
-        raise HTTPException(
-            status_code=HTTPStatus.CONFLICT,
-            detail=COWORKING_EXISTS
-        )
-
     room_query = select(room_db).where(room_db.c.id == coworking_data.room_id)
     room_result = await session.execute(room_query)
     room = room_result.first()
@@ -113,6 +104,35 @@ async def create_coworking(
     if coworking_dict['date_end'].tzinfo is not None:
         coworking_dict['date_end'] = coworking_dict['date_end'].replace(
             tzinfo=None)
+
+    overlapping_query = select(coworking_db).where(
+        and_(
+            coworking_db.c.room_id == coworking_data.room_id,
+            func.date(coworking_db.c.date_start) == func.date(
+                coworking_dict['date_start']),
+            or_(
+                and_(
+                    coworking_db.c.date_start <= coworking_dict['date_start'],
+                    coworking_db.c.date_end > coworking_dict['date_start']
+                ),
+                and_(
+                    coworking_db.c.date_start < coworking_dict['date_end'],
+                    coworking_db.c.date_end >= coworking_dict['date_end']
+                ),
+                and_(
+                    coworking_db.c.date_start >= coworking_dict['date_start'],
+                    coworking_db.c.date_end <= coworking_dict['date_end']
+                )
+            )
+        )
+    )
+
+    result = await session.execute(overlapping_query)
+    if result.first():
+        raise HTTPException(
+            status_code=HTTPStatus.CONFLICT,
+            detail=ROOM_IS_ALREADY
+        )
 
     query = insert(coworking_db).values(**coworking_dict)
     await session.execute(query)
@@ -301,11 +321,39 @@ async def edit_coworking(
         found_items = items_result.fetchall()
 
         if len(found_items) != len(coworking_data.needable_items):
-            found_ids = {item.id for item in found_items}
-            missing_ids = set(coworking_data.needable_items) - found_ids
             raise HTTPException(
                 status_code=HTTPStatus.NOT_FOUND,
                 detail=ITEMS_NOT_FOUND
+            )
+
+    if coworking_data.date_start is not None and coworking_data.date_end is not None:
+        overlapping_query = select(coworking_db).where(
+            and_(
+                coworking_db.c.id != coworking_data.id,  # Exclude current coworking
+                coworking_db.c.room_id == coworking.room_id,
+                func.date(coworking_db.c.date_start) == func.date(
+                    coworking_data.date_start),
+                or_(
+                    and_(
+                        coworking_db.c.date_start <= coworking_data.date_start,
+                        coworking_db.c.date_end > coworking_data.date_start
+                    ),
+                    and_(
+                        coworking_db.c.date_start < coworking_data.date_end,
+                        coworking_db.c.date_end >= coworking_data.date_end
+                    ),
+                    and_(
+                        coworking_db.c.date_start >= coworking_data.date_start,
+                        coworking_db.c.date_end <= coworking_data.date_end
+                    )
+                )
+            )
+        )
+        result = await session.execute(overlapping_query)
+        if result.first():
+            raise HTTPException(
+                status_code=HTTPStatus.CONFLICT,
+                detail=COWORKING_IS_ALREADY
             )
 
     coworking_data = CoworkingEdit(**coworking_data.model_dump())
