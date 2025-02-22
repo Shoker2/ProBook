@@ -15,7 +15,6 @@ from sqlalchemy import (
     DATE
 )
 from datetime import datetime
-
 meta_data = MetaData()
 
 group = Table(
@@ -60,7 +59,8 @@ personal_reservation = Table(
     Column("info_for_moderator", TEXT, nullable=False),
     Column("needable_items", ARRAY(Integer),
            nullable=False, server_default="{}"),
-    Column("date", TIMESTAMP, nullable=False),
+    Column("date_start", TIMESTAMP, nullable=False),
+    Column("date_end", TIMESTAMP, nullable=False),
     Column("moderated", Boolean, nullable=False, server_default="false")
 )
 
