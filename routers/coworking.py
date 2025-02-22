@@ -26,7 +26,7 @@ from ..permissions import (
     checking_for_permission,
     Permissions,
 )
-from ..shared import validate_coworking_time
+from ..shared import time_manager
 from ..models_ import (
     user as user_db,
     personal_reservation as coworking_db,
@@ -50,7 +50,7 @@ async def create_coworking(
     session: AsyncSession = Depends(get_async_session)
 ):
 
-    if not validate_coworking_time(coworking_data.date_start, coworking_data.date_end):
+    if not time_manager(coworking_data.date_start, coworking_data.date_end):
         raise HTTPException(
             status_code=HTTPStatus.BAD_REQUEST,
             detail=TIME_VALIDATION_ERROR
@@ -287,7 +287,7 @@ async def edit_coworking(
             )
 
     if coworking_data.date_start is not None and coworking_data.date_end is not None:
-        if not validate_coworking_time(coworking_data.date_start, coworking_data.date_end):
+        if not time_manager(coworking_data.date_start, coworking_data.date_end):
             raise HTTPException(
                 status_code=HTTPStatus.BAD_REQUEST,
                 detail=TIME_VALIDATION_ERROR
