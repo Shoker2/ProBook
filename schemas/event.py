@@ -1,6 +1,6 @@
 from pydantic import BaseModel
-from datetime import datetime
-from typing import List
+from datetime import datetime, date
+from typing import List, Optional
 import uuid
 
 
@@ -34,3 +34,4 @@ class EventEdit(BaseModel):
 class EventRead(EventEdit):
     user_uuid: uuid.UUID
     participants: List[uuid.UUID]
+

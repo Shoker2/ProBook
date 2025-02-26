@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from datetime import datetime
+from datetime import datetime, date
 import uuid
 from typing import List
 
@@ -37,3 +37,5 @@ class ReadItem(BaseModel):
 
 class CoworkingRead(CoworkingEdit):
     user_uuid: uuid.UUID
+
+
