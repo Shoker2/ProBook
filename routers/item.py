@@ -40,7 +40,7 @@ async def create_item(
         result=result
     )
 
-@router.get('/{id}', response_model=BaseTokenResponse[ItemRead])
+@router.get('/{id}', response_model=ItemRead)
 async def get_item(
         id: int,
         session: AsyncSession = Depends(get_async_session)
@@ -56,12 +56,9 @@ async def get_item(
 
     result = ItemRead(**row._mapping)
 
-    return BaseTokenResponse(
-        new_token=user.new_token,
-        result=result
-    )
+    return result
 
-@router.get('/', response_model=BaseTokenResponse[list[ItemRead]])
+@router.get('/', response_model=list[ItemRead])
 async def get_all_items(
         session: AsyncSession = Depends(get_async_session)
     ):
@@ -79,10 +76,7 @@ async def get_all_items(
     for row in rows:
         result.append(ItemRead(**row._mapping))
 
-    return BaseTokenResponse(
-        new_token=user.new_token,
-        result=result
-    )
+    return result
 
 @router.delete(
     '/{id}',
