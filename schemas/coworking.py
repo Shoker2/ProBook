@@ -5,12 +5,12 @@ from typing import List
 
 
 class CoworkingCreate(BaseModel):
-
     room_id: int
     info_for_moderator: str
     date_start: datetime
     date_end: datetime
     needable_items: List[int] | None = None
+    moderated: bool | None = None
 
 
 class CoworkingEdit(BaseModel):

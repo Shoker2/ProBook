@@ -78,19 +78,11 @@ async def create_coworking(
                 detail=ITEMS_NOT_FOUND
             )
 
-    user_query = select(user_db).where(
-        user_db.c.uuid == user.uuid)
-    user_result = await session.execute(user_query)
-
-    if not user_result.first():
-        raise HTTPException(
-            status_code=HTTPStatus.NOT_FOUND,
-            detail=USER_NOT_FOUND
-        )
-
     room_query = select(room_db).where(room_db.c.id == coworking_data.room_id)
     room_result = await session.execute(room_query)
     room = room_result.first()
+
+    coworking_data.moderated = coworking_data.moderated and checking_for_permission(Permissions.coworkings_moderate.value, user)
 
     if not room:
         raise HTTPException(
@@ -325,7 +317,7 @@ async def delete_coworking(
     has_permission = checking_for_permission(
         Permissions.coworkings_delete.value, user)
 
-    if not is_creator or not has_permission:
+    if not is_creator and not has_permission:
         raise HTTPException(
             status_code=HTTPStatus.FORBIDDEN,
             detail=PERMISSION_IS_NOT_EXIST

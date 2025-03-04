@@ -14,6 +14,7 @@ class EventCreate(BaseModel):
     date_start: datetime
     date_end: datetime
     needable_items: List[int] | None = None
+    moderated: bool | None = None
 
 
 class EventEdit(BaseModel):
