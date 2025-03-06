@@ -1,7 +1,6 @@
 from ..details import *
 from ..config import config
 from ..schemas import *
-from ..database import redis_db, get_async_session, create_group as create_group_db, delete_group as delete_group_db
 from ..auth import *
 from ..models_ import item as item_db
 from ..permissions import get_depend_user_with_perms, Permissions
@@ -12,11 +11,14 @@ from sqlalchemy.exc import IntegrityError
 from httpx_oauth.oauth2 import RefreshTokenError, GetAccessTokenError
 from sqlalchemy import update, select, insert, delete
 from functools import partial
+from ..action_history import add_action_to_history, HistoryActions
 
 router = APIRouter(
     prefix="/items",
     tags=["items"]
 )
+
+OBJECT_TABLE = "item"
 
 @router.post('/create', response_model=BaseTokenResponse[ItemRead])
 async def create_item(
@@ -28,12 +30,21 @@ async def create_item(
     insert_statement = item_db.insert().values(**item.model_dump())
     
     result = await session.execute(insert_statement)
-    await session.commit()
 
     select_statement = item_db.select().where(item_db.c.id == result.inserted_primary_key[0])
     row = (await session.execute(select_statement)).fetchone()
 
     result = ItemRead(**row._mapping)
+
+    await add_action_to_history(ActionHistoryCreate(
+        action=HistoryActions.create.value,
+        subject_uuid=user.uuid,
+        object_table=OBJECT_TABLE,
+        object_id=result.id,
+        detail=row._mapping
+    ), session)
+
+    await session.commit()
 
     return BaseTokenResponse(
         new_token=user.new_token,
@@ -96,6 +107,7 @@ async def delete_item(
         user: UserToken = Depends(get_depend_user_with_perms([Permissions.items_delete.value])),
         session: AsyncSession = Depends(get_async_session)
     ):
+    del_item = await get_item(id=id, session=session)
 
     select_statement = item_db.delete().where(item_db.c.id == id)
 
@@ -106,6 +118,14 @@ async def delete_item(
             status_code=status.HTTP_424_FAILED_DEPENDENCY,
             detail=ITEM_IS_IN_USE
         )
+    
+    await add_action_to_history(ActionHistoryCreate(
+        action=HistoryActions.delete.value,
+        subject_uuid=user.uuid,
+        object_table=OBJECT_TABLE,
+        object_id=del_item.id,
+        detail=del_item.model_dump()
+    ), session)
     
     await session.commit()
 
@@ -121,12 +141,26 @@ async def update_item(
         session: AsyncSession = Depends(get_async_session)
     ):
 
+    op_detail = ActionHistoryDetailUpdate()
+    old_data = await get_item(id=item.id, session=session)
+
     stmt = item_db.update().where(item_db.c.id == item.id)
 
     if item.name is not None:
         stmt = stmt.values(name=item.name)
+        op_detail.update("name", old_data.name, item.name)
 
     await session.execute(stmt)
+
+    if not op_detail.empty:
+        await add_action_to_history(ActionHistoryCreate(
+            action=HistoryActions.update.value,
+            subject_uuid=user.uuid,
+            object_table=OBJECT_TABLE,
+            object_id=item.id,
+            detail=op_detail
+        ), session)
+
     await session.commit()
 
     select_statement = item_db.select().where(item_db.c.id == item.id)

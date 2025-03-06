@@ -12,6 +12,7 @@ from .routers.item import router as items_router
 from .routers.uploader import router as uploader_router, STATIC_IMAGES_DIR
 from .routers.schedule import router as schedule_router
 from .routers.room import router as room_router
+from .routers.action_history import router as action_history_router
 from .auth import *
 from .schemas import *
 from sqlalchemy import (
@@ -40,7 +41,8 @@ routers = [
     items_router,
     uploader_router,
     schedule_router,
-    room_router
+    room_router,
+    action_history_router
 ]
 
 for router in routers:

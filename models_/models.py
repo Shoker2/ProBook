@@ -12,7 +12,8 @@ from sqlalchemy import (
     ForeignKey,
     UUID,
     TEXT,
-    DATE
+    DATE,
+    JSON
 )
 from datetime import datetime
 meta_data = MetaData()
@@ -90,4 +91,17 @@ schedule = Table(
     meta_data,
     Column("date", DATE, nullable=False, primary_key=True),
     Column("schedule_time", ARRAY(String), nullable=False)
+)
+
+
+action_history = Table(
+    "action_history",
+    meta_data,
+    Column("id", Integer, primary_key=True),
+    Column("action", String, nullable=False),
+    Column("date", TIMESTAMP, nullable=False, default=datetime.utcnow),
+    Column("subject_uuid", ForeignKey("user.uuid"), nullable=False),
+    Column("object_table", String, nullable=False),
+    Column("object_id", String, nullable=False),
+    Column("detail", JSON, nullable=False),
 )

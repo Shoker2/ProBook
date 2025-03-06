@@ -6,7 +6,6 @@ from sqlalchemy import update, select, insert, delete
 from ..details import *
 from ..config import config
 from ..schemas import *
-from ..database import redis_db, get_async_session, create_group as create_group_db, delete_group as delete_group_db
 from ..auth import *
 from ..models_ import group as group_db
 from ..permissions import get_depend_user_with_perms, Permissions, PERMISSION_DESC
