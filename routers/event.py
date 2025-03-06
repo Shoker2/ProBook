@@ -307,7 +307,7 @@ async def delete_event(
 
     if not event:
         raise HTTPException(
-            status_code=HTTPStatus.FORBIDDEN,
+            status_code=HTTPStatus.NOT_FOUND,
             detail=EVENT_NOT_FOUND
         )
 
