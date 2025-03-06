@@ -93,7 +93,6 @@ async def create_coworking(
     coworking_dict = coworking_data.model_dump()
     coworking_dict['user_uuid'] = user.uuid
     coworking_dict['moderated'] = False
-
     if coworking_dict['date_start'].tzinfo is not None:
         coworking_dict['date_start'] = coworking_dict['date_start'].replace(
             tzinfo=None)
@@ -142,9 +141,10 @@ async def create_coworking(
 async def get_coworkings_range(
     start_date: datetime = Query(..., description="Начальная дата"),
     end_date: datetime = Query(..., description="Конечная дата"),
-    session: AsyncSession = Depends(get_async_session),
-):
-        
+    room_id: int | None = Query(None, description="Необязательный фильтр по id"),
+    needable_items: List[int] | None = Query(None, description="Необязательный фильтр по предметам"),
+    session: AsyncSession = Depends(get_async_session)
+):  
 
         if (start_date > end_date):
             raise HTTPException(
@@ -152,26 +152,27 @@ async def get_coworkings_range(
                 detail=START_TIME_GREATER_THAN_END
             )
 
-
-        query = select(coworking_db).where((coworking_db.c.date_start >= start_date) & (coworking_db.c.date_end <= end_date))
+        query = select(coworking_db).where(
+            (coworking_db.c.date_start <= end_date) 
+            &  
+            (coworking_db.c.date_end >= start_date)
+            )
+        
+        if room_id is not None:
+            query = query.where(coworking_db.c.room_id == room_id)
+        
+        if needable_items is not None and needable_items:
+            query = query.where(
+                cast(coworking_db.c.needable_items, ARRAY(Integer)).contains(needable_items)
+            )
 
         result = await session.execute(query)
         coworkings = result.fetchall()
 
         response = [
-                CoworkingRead(
-                    id=coworking._mapping["id"],
-                    room_id=coworking._mapping["room_id"],
-                    user_uuid=coworking._mapping["user_uuid"],
-                    info_for_moderator=coworking._mapping["info_for_moderator"],
-                    date_start=coworking._mapping["date_start"],
-                    date_end=coworking._mapping["date_end"],
-                    needable_items=coworking._mapping.get("needable_items", []),
-                    moderated=coworking._mapping["moderated"]
-                )
+                CoworkingRead(**(coworking._mapping))
                 for coworking in coworkings
             ]
-
         return response
 
 
@@ -179,29 +180,34 @@ async def get_coworkings_range(
 @router.get("/by-day", response_model=List[CoworkingRead])
 async def get_coworkings_date(
     session: AsyncSession = Depends(get_async_session),
-    cw_date: date = Query(..., description = "Дата коворкингов")
+    date: date = Query(..., description = "Дата коворкингов"),
+    room_id: int | None = Query(None, description="Необязательный фильтр по id"),
+    needable_items: List[int] | None = Query(None, description="Необязательный фильтр по предметам")
 ):
-    query = select(coworking_db).where(func.date(coworking_db.c.date_start) == cw_date)
+    query = select(coworking_db).where(
+    or_(
+        func.date(coworking_db.c.date_start) == date,
+        func.date(coworking_db.c.date_end) == date
+        )
+    )
 
+    if room_id is not None:
+        query = query.where(coworking_db.c.room_id == room_id)
+    
+    if needable_items is not None and needable_items:
+        query = query.where(
+            cast(coworking_db.c.needable_items, ARRAY(Integer)).contains(needable_items)
+        )
+    
     result = await session.execute(query)
 
     coworkings = result.fetchall()
 
     response = [
-            CoworkingRead(
-                id = coworking._mapping["id"],
-                room_id = coworking._mapping["room_id"],
-                user_uuid = coworking._mapping["user_uuid"],
-                info_for_moderator= coworking._mapping["info_for_moderator"],
-                date_start= coworking._mapping["date_start"],
-                date_end = coworking._mapping["date_end"],
-                needable_items=coworking._mapping.get("needable_items", []),
-                moderated=coworking._mapping["moderated"]
-            )
+            CoworkingRead(**(coworking._mapping))
             for coworking in coworkings
         ]
     return response
-
 
 
 @router.get(
@@ -210,26 +216,28 @@ async def get_coworkings_date(
 )
 async def my_coworkings(
         current_user: UserToken = Depends(get_current_user),
-        session: AsyncSession = Depends(get_async_session)
+        session: AsyncSession = Depends(get_async_session),
+        room_id: int | None = Query(None, description="Необязательный фильтр по id"),
+        needable_items: List[int] | None = Query(None, description="Необязательный фильтр по предметам")
 ):
-    query = select(coworking_db).where(
-        coworking_db.c.user_uuid == current_user.uuid)
-    result = await session.execute(query)
-    coworkings = result.fetchall()
-    events_info = [
-        ReadItem(
-            id=coworking._mapping["id"],
-            room_id=coworking._mapping["room_id"],
-            user_uuid=coworking._mapping["user_uuid"],
-            info_for_moderator=coworking._mapping["info_for_moderator"],
-            moderated=coworking._mapping["moderated"],
-            needable_items=coworking._mapping.get("needable_items", []),
-            date_start=coworking._mapping["date_start"],
-            date_end=coworking._mapping["date_end"],
+    query = select(coworking_db).where(coworking_db.c.user_uuid == current_user.uuid)
+    
+    if room_id is not None:
+        query = query.where(coworking_db.c.room_id == room_id)
+    
+    if needable_items is not None and needable_items:
+        query = query.where(
+            cast(coworking_db.c.needable_items, ARRAY(Integer)).contains(needable_items)
         )
+
+    result = await session.execute(query)
+
+    coworkings = result.fetchall()
+    response = [
+        ReadItem(**(coworking._mapping))
         for coworking in coworkings
     ]
-    return events_info
+    return response
 
 
 @router.get(
@@ -244,7 +252,6 @@ async def get_coworking(
     result = await session.execute(query)
 
     coworking = result.first()
-
     if not coworking:
         raise HTTPException(
             status_code=HTTPStatus.NOT_FOUND,
@@ -254,44 +261,32 @@ async def get_coworking(
     return dict(coworking._mapping)
 
 
-
 @router.get(
     "/",
     response_model=list[ReadItem]
 )
 async def get_events(
     session: AsyncSession = Depends(get_async_session),
-    cw_room_id: int | None = Query(None, description="Необязательный фильтр по id"),
-    cw_needable_items: List[int] | None = Query(None, description="Необязательный фильтр по предметам")
+    room_id: int | None = Query(None, description="Необязательный фильтр по id"),
+    needable_items: List[int] | None = Query(None, description="Необязательный фильтр по предметам")
 ):
     query = select(coworking_db)
-    if cw_room_id is not None:
-        query = query.where(coworking_db.c.room_id == cw_room_id)
+    if room_id is not None:
+        query = query.where(coworking_db.c.room_id == room_id)
     
-    if cw_needable_items is not None and cw_needable_items:
+    if needable_items is not None and needable_items:
         query = query.where(
-            cast(coworking_db.c.needable_items, ARRAY(Integer)).contains(cw_needable_items)
+            cast(coworking_db.c.needable_items, ARRAY(Integer)).contains(needable_items)
         )
     result = await session.execute(query)
     coworkings = result.fetchall()
 
     response = [
-        ReadItem(
-            id=coworking._mapping["id"],
-            room_id=coworking._mapping["room_id"],
-            user_uuid=coworking._mapping["user_uuid"],
-            info_for_moderator=coworking._mapping["info_for_moderator"],
-            moderated=coworking._mapping["moderated"],
-            needable_items=coworking._mapping.get("needable_items", []),
-            date_start=coworking._mapping["date_start"],
-            date_end=coworking._mapping["date_end"],
-        )
+        ReadItem(**(coworking._mapping))
         for coworking in coworkings
     ]
 
     return response
-
-
 
 
 @router.delete("/{id}")

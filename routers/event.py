@@ -85,7 +85,7 @@ async def create_event(
 
         if len(found_items) != len(event_data.needable_items):
             found_ids = {item.id for item in found_items}
-            missing_ids = set(event_data.needable_items) - found_ids
+            missing_ids = set(event_data.needable_items) - found_ids # потом вспомнить
             raise HTTPException(
                 status_code=HTTPStatus.NOT_FOUND,
                 detail=ITEMS_NOT_FOUND
@@ -144,37 +144,36 @@ async def create_event(
 async def my_events(
         current_user: UserToken = Depends(get_current_user),
         session: AsyncSession = Depends(get_async_session),
+        room_id: int | None = Query(None, description="Необязательный фильтр по id"),
+        needable_items: List[int] | None = Query(None, description="Необязательный фильтр по предметам")
 ):
     query = select(event_db).where(event_db.c.user_uuid == current_user.uuid)
+    
+    if room_id is not None:
+        query = query.where(event_db.c.room_id == room_id)
+    
+    if needable_items is not None and needable_items:
+        query = query.where(
+            cast(event_db.c.needable_items, ARRAY(Integer)).contains(needable_items)
+        )
+    
     result = await session.execute(query)
     events = result.fetchall()
 
-    events_info = [
-        EventRead(
-            id=event._mapping["id"],
-            room_id=event._mapping["room_id"],
-            info_for_moderator=event._mapping["info_for_moderator"],
-            title=event._mapping["title"],
-            description=event._mapping["description"],
-            participants=event._mapping["participants"],
-            img=event._mapping["img"],
-            repeat=event._mapping["repeat"],
-            user_uuid=event._mapping["user_uuid"],
-            date_start=event._mapping["date_start"],
-            date_end=event._mapping["date_end"],
-            moderated=event._mapping["moderated"],
-            needable_items=event._mapping.get("needable_items", [])
-        )
-        for event in events
-    ]
-    return events_info
+    response = [
+                EventRead(**(event._mapping))
+                for event in events
+            ]
+    return response
 
 
 @router.get("/range", response_model=List[EventRead])
 async def get_coworkings_range(
     start_date: datetime = Query(..., description="Начальная дата"),
     end_date: datetime = Query(..., description="Конечная дата"),
-    session: AsyncSession = Depends(get_async_session),
+    room_id: int | None = Query(None, description="Необязательный фильтр по id"),
+    needable_items: List[int] | None = Query(None, description="Необязательный фильтр по предметам"),
+    session: AsyncSession = Depends(get_async_session)
 ):
         
         if (start_date > end_date):
@@ -182,68 +181,65 @@ async def get_coworkings_range(
                 status_code=400,
                 detail=START_TIME_GREATER_THAN_END
             )
+        
+        query = select(event_db).where(
+            (event_db.c.date_start <= end_date) 
+            &  
+            (event_db.c.date_end >= start_date)
+            )
+        
+        if room_id is not None:
+            query = query.where(event_db.c.room_id == room_id)
+        
+        if needable_items is not None and needable_items:
+            query = query.where(
+                cast(event_db.c.needable_items, ARRAY(Integer)).contains(needable_items)
+            )
 
-
-        query = select(event_db).where((event_db.c.date_start >= start_date) & (event_db.c.date_end <= end_date))
 
         result = await session.execute(query)
         events = result.fetchall()
 
         response = [
-                EventRead(
-                    id = event._mapping["id"],
-                    room_id = event._mapping["room_id"],
-                    user_uuid = event._mapping["user_uuid"],
-                    info_for_moderator = event._mapping["info_for_moderator"],
-                    title = event._mapping["title"],
-                    description = event._mapping["description"],
-                    img = event._mapping.get("img"),
-                    repeat = event._mapping["repeat"],
-                    date_start = event._mapping["date_start"],
-                    date_end = event._mapping["date_end"],
-                    moderated = event._mapping["moderated"],
-                    needable_items = event._mapping.get("needable_items", []),
-                    participants = event._mapping.get("participants", [])
-                )
+                EventRead(**(event._mapping))
                 for event in events
             ]
-        
 
         return response
 
 
 @router.get("/by-day", response_model=List[EventRead])
-async def get_coworkings_date(
+async def get_events_date(
     session: AsyncSession = Depends(get_async_session),
-    ev_date: date = Query(..., description = "Дата коворкингов")
+    date: date = Query(..., description = "Дата коворкингов"),
+    room_id: int | None = Query(None, description="Необязательный фильтр по id"),
+    needable_items: List[int] | None = Query(None, description="Необязательный фильтр по предметам")
 ):
-    query = select(event_db).where(func.date(event_db.c.date_start) == ev_date)
+    query = select(event_db).where(
+        or_(
+            func.date(event_db.c.date_start) == date,
+            func.date(event_db.c.date_end) == date
+        )
+    )
+    if room_id is not None:
+        query = query.where(event_db.c.room_id == room_id)
+    
+    if needable_items is not None and needable_items:
+        query = query.where(
+            cast(event_db.c.needable_items, ARRAY(Integer)).contains(needable_items)
+        )
 
     result = await session.execute(query)
 
     events = result.fetchall()
 
     response = [
-        EventRead(
-            id=event._mapping["id"],
-            room_id=event._mapping["room_id"],
-            user_uuid=event._mapping["user_uuid"],
-            info_for_moderator=event._mapping["info_for_moderator"],
-            title=event._mapping["title"],
-            description=event._mapping["description"],
-            img=event._mapping.get("img"),
-            repeat=event._mapping["repeat"],
-            date_start=event._mapping["date_start"],
-            date_end=event._mapping["date_end"],
-            moderated=event._mapping["moderated"],
-            needable_items=event._mapping.get("needable_items", []),
-            participants=event._mapping.get("participants", [])
-        )
-        for event in events
-    ]
-
+                EventRead(**(event._mapping))
+                for event in events
+            ]
     
     return response
+
 
 @router.get(
     "/{id}",
@@ -274,44 +270,26 @@ async def get_event(
 )
 async def get_events(
     session: AsyncSession = Depends(get_async_session),
-    ev_room_id: int | None = Query(None, description="Необязательный фильтр по id"),
-    ev_needable_items: List[int] | None = Query(None, description="Необязательный фильтр по предметам")
+    room_id: int | None = Query(None, description="Необязательный фильтр по id"),
+    needable_items: List[int] | None = Query(None, description="Необязательный фильтр по предметам")
 ):
     query = select(event_db)
 
-    if ev_room_id is not None:
-        query = query.where(event_db.c.room_id == ev_room_id)
+    if room_id is not None:
+        query = query.where(event_db.c.room_id == room_id)
     
-    if ev_needable_items is not None and ev_needable_items:
+    if needable_items is not None and needable_items:
         query = query.where(
-            
-            cast(event_db.c.needable_items, ARRAY(Integer)).contains(ev_needable_items)
-            
+            cast(event_db.c.needable_items, ARRAY(Integer)).contains(needable_items)
             )
 
     result = await session.execute(query)
 
     events = result.fetchall()
-
     response = [
-                EventRead(
-                    id = event._mapping["id"],
-                    room_id = event._mapping["room_id"],
-                    user_uuid = event._mapping["user_uuid"],
-                    info_for_moderator = event._mapping["info_for_moderator"],
-                    title = event._mapping["title"],
-                    description = event._mapping["description"],
-                    img = event._mapping.get("img"),
-                    repeat = event._mapping["repeat"],
-                    date_start = event._mapping["date_start"],
-                    date_end = event._mapping["date_end"],
-                    moderated = event._mapping["moderated"],
-                    needable_items = event._mapping.get("needable_items", []),
-                    participants = event._mapping.get("participants", [])
-                )
+                EventRead(**(event._mapping))
                 for event in events
             ]
-
     return response
 
 
@@ -570,28 +548,14 @@ async def get_my_participated_events(
     result = await session.execute(query)
     events = result.fetchall()
 
-    events_list = [
-        EventRead(
-            id=event.id,
-            room_id=event.room_id,
-            info_for_moderator=event.info_for_moderator,
-            title=event.title,
-            description=event.description,
-            participants=event.participants,
-            img=event.img,
-            repeat=event.repeat,
-            user_uuid=event.user_uuid,
-            date_start=event.date_start,
-            date_end=event.date_end,
-            moderated=event.moderated,
-            needable_items=event.needable_items
-        )
-        for event in events
-    ]
+    response = [
+                EventRead(**(event._mapping))
+                for event in events
+            ]
 
     return BaseTokenResponse(
         new_token=user.new_token,
-        result=events_list
+        result=response
     )
 
 
@@ -619,25 +583,11 @@ async def get_user_participated_events(
     result = await session.execute(query)
     events = result.fetchall()
 
-    events_list = [
-        EventRead(
-            id=event.id,
-            room_id=event.room_id,
-            info_for_moderator=event.info_for_moderator,
-            title=event.title,
-            description=event.description,
-            participants=event.participants,
-            img=event.img,
-            repeat=event.repeat,
-            user_uuid=event.user_uuid,
-            date_start=event.date_start,
-            date_end=event.date_end,
-            moderated=event.moderated,
-            needable_items=event.needable_items
-        )
-        for event in events
-    ]
+    response = [
+                EventRead(**(event._mapping))
+                for event in events
+            ]
     return BaseTokenResponse(
         new_token=user.new_token,
-        result=events_list
+        result=response
     )
