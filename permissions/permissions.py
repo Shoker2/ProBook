@@ -32,6 +32,8 @@ class Permissions(Enum):
     template_change = "template.change"
     schedule_create = "schedule.create"
     schedule_delete = "schedule.delete"
+
+    action_history_view = "action_history.view"
     
 PERMISSION_DESC = {
     Permissions.groups_create.value: "Creation group",

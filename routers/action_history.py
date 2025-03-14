@@ -19,6 +19,7 @@ router = APIRouter(
 @router.get('/{id}', response_model=ActionHistoryRead)
 async def get_action(
         id: int,
+        user: UserToken = Depends(get_depend_user_with_perms([Permissions.action_history_view.value])),
         session: AsyncSession = Depends(get_async_session)
     ):
 
@@ -43,6 +44,7 @@ async def get_all_actions(
         subject_uuid: uuid.UUID | None = None,
         object_table: str | None = None,
         object_id: int | str | None = None,
+        user: UserToken = Depends(get_depend_user_with_perms([Permissions.action_history_view.value])),
         session: AsyncSession = Depends(get_async_session)
     ):
     select_statement = action_history_db.select()
