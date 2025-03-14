@@ -1,13 +1,13 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from datetime import datetime
 from uuid import UUID
-
+from pydantic.json_schema import SkipJsonSchema
 
 class ActionHistoryDetailUpdate(BaseModel):
     old: dict = {}
     new: dict = {}
 
-    empty: bool = True
+    empty: SkipJsonSchema[bool] = Field(exclude=True, default=True)
 
     def update(self, selection: str, old, new):
         if old != new:

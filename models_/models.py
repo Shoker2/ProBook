@@ -13,7 +13,7 @@ from sqlalchemy import (
     UUID,
     TEXT,
     DATE,
-    JSON
+    JSON,
 )
 from datetime import datetime
 meta_data = MetaData()
@@ -32,6 +32,7 @@ item = Table(
     meta_data,
     Column("id", Integer, primary_key=True),
     Column("name", String, nullable=False),
+    Column("room_id", ForeignKey("room.id"), nullable=True)
 )
 
 user = Table(
@@ -48,7 +49,8 @@ room = Table(
     meta_data,
     Column("id", Integer, primary_key=True),
     Column("name", String, nullable=False),
-    Column("capacity", Integer, nullable=False)
+    Column("capacity", Integer, nullable=False),
+    Column("description", TEXT, nullable=False, server_default="")
 )
 
 personal_reservation = Table(

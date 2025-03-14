@@ -152,6 +152,15 @@ async def update_room(
     if room.capacity is not None:
         stmt = stmt.values(capacity=room.capacity)
         op_detail.update("capacity", old_data.capacity, room.capacity)
+    
+    if room.description is not None:
+        stmt = stmt.values(description=room.description)
+        op_detail.update("description", old_data.description, room.description)
+    
+    if stmt.whereclause is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST
+        )
 
     await session.execute(stmt)
 

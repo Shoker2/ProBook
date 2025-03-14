@@ -71,10 +71,15 @@ async def get_item(
 
 @router.get('/', response_model=list[ItemRead])
 async def get_all_items(
+        room_id: int | None = None,
         session: AsyncSession = Depends(get_async_session)
     ):
 
     select_statement = item_db.select()
+
+    if room_id is not None:
+        select_statement = select_statement.where(item_db.c.room_id == room_id)
+
     rows = (await session.execute(select_statement)).fetchall()
 
     if rows is None:
@@ -149,6 +154,15 @@ async def update_item(
     if item.name is not None:
         stmt = stmt.values(name=item.name)
         op_detail.update("name", old_data.name, item.name)
+    
+    if item.room_id is not None:
+        stmt = stmt.values(room_id=item.room_id)
+        op_detail.update("room_id", old_data.room_id, item.room_id)
+
+    if stmt.whereclause is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST
+        )
 
     await session.execute(stmt)
 
