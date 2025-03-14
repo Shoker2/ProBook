@@ -146,6 +146,8 @@ async def my_events(
         session: AsyncSession = Depends(get_async_session),
         room_id: int | None = Query(None, description="Необязательный фильтр по id"),
         needable_items: List[int] | None = Query(None, description="Необязательный фильтр по предметам"),
+        date_start: datetime | None = Query(None, description="Начальная дата"),
+        date_end: datetime | None = Query(None, description="Конечная дата"),
         limit: int = 10,
         page: int = 1,
 ):
@@ -154,78 +156,19 @@ async def my_events(
 
     query = select(event_db).where(event_db.c.user_uuid == current_user.uuid).limit(limit).offset(page * limit)
     
-    if room_id is not None:
-        query = query.where(event_db.c.room_id == room_id)
-    
-    if needable_items is not None and needable_items:
+    if date_start is not None and date_end is not None:
         query = query.where(
-            cast(event_db.c.needable_items, ARRAY(Integer)).contains(needable_items)
-        )
-    
-    result = await session.execute(query)
-    events = result.fetchall()
-
-    response = [
-                EventRead(**(event._mapping))
-                for event in events
-            ]
-    return response
-
-
-@router.get("/range", response_model=List[EventRead])
-async def get_coworkings_range(
-    start_date: datetime = Query(..., description="Начальная дата"),
-    end_date: datetime = Query(..., description="Конечная дата"),
-    room_id: int | None = Query(None, description="Необязательный фильтр по id"),
-    needable_items: List[int] | None = Query(None, description="Необязательный фильтр по предметам"),
-    session: AsyncSession = Depends(get_async_session)
-):
-        
-        if (start_date > end_date):
-            raise HTTPException(
-                status_code=400,
-                detail=START_TIME_GREATER_THAN_END
-            )
-        
-        query = select(event_db).where(
-            (event_db.c.date_start <= end_date) 
+            (event_db.c.date_start <= date_end) 
             &  
-            (event_db.c.date_end >= start_date)
-            )
-        
-        if room_id is not None:
-            query = query.where(event_db.c.room_id == room_id)
-        
-        if needable_items is not None and needable_items:
-            query = query.where(
-                cast(event_db.c.needable_items, ARRAY(Integer)).contains(needable_items)
+            (event_db.c.date_end >= date_start)
             )
 
+    elif date_start is not None:
+        query = query.where(event_db.c.date_start >= date_start)
+    
+    elif date_end is not None:
+        query = query.where(event_db.c.date_end <= date_end)
 
-        result = await session.execute(query)
-        events = result.fetchall()
-
-        response = [
-                EventRead(**(event._mapping))
-                for event in events
-            ]
-
-        return response
-
-
-@router.get("/by-day", response_model=List[EventRead])
-async def get_events_date(
-    session: AsyncSession = Depends(get_async_session),
-    date: date = Query(..., description = "Дата коворкингов"),
-    room_id: int | None = Query(None, description="Необязательный фильтр по id"),
-    needable_items: List[int] | None = Query(None, description="Необязательный фильтр по предметам")
-):
-    query = select(event_db).where(
-        or_(
-            func.date(event_db.c.date_start) == date,
-            func.date(event_db.c.date_end) == date
-        )
-    )
     if room_id is not None:
         query = query.where(event_db.c.room_id == room_id)
     
@@ -233,16 +176,14 @@ async def get_events_date(
         query = query.where(
             cast(event_db.c.needable_items, ARRAY(Integer)).contains(needable_items)
         )
-
+    
     result = await session.execute(query)
-
     events = result.fetchall()
 
     response = [
                 EventRead(**(event._mapping))
                 for event in events
             ]
-    
     return response
 
 
@@ -277,6 +218,8 @@ async def get_events(
     session: AsyncSession = Depends(get_async_session),
     room_id: int | None = Query(None, description="Необязательный фильтр по id"),
     needable_items: List[int] | None = Query(None, description="Необязательный фильтр по предметам"),
+    date_start: datetime | None = Query(None, description="Начальная дата"),
+    date_end: datetime | None = Query(None, description="Конечная дата"),
     limit: int = 10,
     page: int = 1,
 ):
@@ -284,6 +227,19 @@ async def get_events(
     page = max(1, page) - 1
 
     query = select(event_db).limit(limit).offset(page * limit)
+
+    if date_start is not None and date_end is not None:
+        query = query.where(
+            (event_db.c.date_start <= date_end) 
+            &  
+            (event_db.c.date_end >= date_start)
+            )
+
+    elif date_start is not None:
+        query = query.where(event_db.c.date_start >= date_start)
+    
+    elif date_end is not None:
+        query = query.where(event_db.c.date_end <= date_end)
 
     if room_id is not None:
         query = query.where(event_db.c.room_id == room_id)
