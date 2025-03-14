@@ -22,8 +22,8 @@ services:
     image: postgres
     restart: always
     user: postgres
-    # volumes:
-    #   - probook-db-data:/var/lib/postgresql/data
+    volumes:
+      - probook-db-data:/var/lib/postgresql/data
     environment:
       POSTGRES_DB: "probook"
       POSTGRES_USER: "postgres"
