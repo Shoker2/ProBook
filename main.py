@@ -48,17 +48,6 @@ routers = [
 for router in routers:
     app.include_router(router)
 
-# @app.exception_handler(HTTPException)
-# async def http_exception_handler(request: Request, exc: HTTPException):
-#     response_data = {"detail": exc.detail}
-
-#     return JSONResponse(
-#         status_code=exc.status_code,
-#         content=response_data,
-#     )
-
-# Валидация наличия new_token
-
 
 async def add_new_token_to_response(request: Request, call_next):
     response = await call_next(request)

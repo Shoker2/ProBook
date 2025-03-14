@@ -23,6 +23,7 @@ from ..models_ import (
     room as room_db,
     item as item_db
 )
+import uuid
 from sqlalchemy import (
     insert,
     select,
@@ -151,40 +152,16 @@ async def my_events(
         limit: int = 10,
         page: int = 1,
 ):
-    limit = min(max(1, limit), 60)
-    page = max(1, page) - 1
-
-    query = select(event_db).where(event_db.c.user_uuid == current_user.uuid).limit(limit).offset(page * limit)
-    
-    if date_start is not None and date_end is not None:
-        query = query.where(
-            (event_db.c.date_start <= date_end) 
-            &  
-            (event_db.c.date_end >= date_start)
-            )
-
-    elif date_start is not None:
-        query = query.where(event_db.c.date_start >= date_start)
-    
-    elif date_end is not None:
-        query = query.where(event_db.c.date_end <= date_end)
-
-    if room_id is not None:
-        query = query.where(event_db.c.room_id == room_id)
-    
-    if needable_items is not None and needable_items:
-        query = query.where(
-            cast(event_db.c.needable_items, ARRAY(Integer)).contains(needable_items)
-        )
-    
-    result = await session.execute(query)
-    events = result.fetchall()
-
-    response = [
-                EventRead(**(event._mapping))
-                for event in events
-            ]
-    return response
+    return await get_events(
+        session = session,
+        room_id = room_id,
+        needable_items = needable_items,
+        date_start = date_start,
+        date_end = date_end,
+        by_user = str(current_user.uuid),
+        limit = limit,
+        page = page,
+    )
 
 
 @router.get(
@@ -220,6 +197,7 @@ async def get_events(
     needable_items: List[int] | None = Query(None, description="Необязательный фильтр по предметам"),
     date_start: datetime | None = Query(None, description="Начальная дата"),
     date_end: datetime | None = Query(None, description="Конечная дата"),
+    by_user: str | None = Query(None, description="Кем был создан ивент"),
     limit: int = 10,
     page: int = 1,
 ):
@@ -248,6 +226,17 @@ async def get_events(
         query = query.where(
             cast(event_db.c.needable_items, ARRAY(Integer)).contains(needable_items)
             )
+    
+    if by_user is not None:
+        try:
+            by_user = uuid.UUID(str(by_user))
+        except ValueError:
+            raise HTTPException(
+                status_code=HTTPStatus.BAD_REQUEST,
+                detail=INVALID_UUID
+            )
+
+        query = query.where(event_db.c.user_uuid == by_user)
 
     result = await session.execute(query)
 
