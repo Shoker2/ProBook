@@ -218,9 +218,14 @@ async def my_coworkings(
         current_user: UserToken = Depends(get_current_user),
         session: AsyncSession = Depends(get_async_session),
         room_id: int | None = Query(None, description="Необязательный фильтр по id"),
-        needable_items: List[int] | None = Query(None, description="Необязательный фильтр по предметам")
+        needable_items: List[int] | None = Query(None, description="Необязательный фильтр по предметам"),
+        limit: int = 10,
+        page: int = 1,
 ):
-    query = select(coworking_db).where(coworking_db.c.user_uuid == current_user.uuid)
+    limit = min(max(1, limit), 60)
+    page = max(1, page) - 1
+
+    query = select(coworking_db).where(coworking_db.c.user_uuid == current_user.uuid).limit(limit).offset(page * limit)
     
     if room_id is not None:
         query = query.where(coworking_db.c.room_id == room_id)
@@ -268,9 +273,14 @@ async def get_coworking(
 async def get_events(
     session: AsyncSession = Depends(get_async_session),
     room_id: int | None = Query(None, description="Необязательный фильтр по id"),
-    needable_items: List[int] | None = Query(None, description="Необязательный фильтр по предметам")
+    needable_items: List[int] | None = Query(None, description="Необязательный фильтр по предметам"),
+    limit: int = 10,
+    page: int = 1,
 ):
-    query = select(coworking_db)
+    limit = min(max(1, limit), 60)
+    page = max(1, page) - 1
+
+    query = select(coworking_db).limit(limit).offset(page * limit)
     if room_id is not None:
         query = query.where(coworking_db.c.room_id == room_id)
     

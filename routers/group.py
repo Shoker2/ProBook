@@ -94,10 +94,15 @@ async def get_group(
 @router.get('/', response_model=BaseTokenResponse[list[GroupRead]])
 async def get_all_groups(
         user: UserToken = Depends(get_depend_user_with_perms([Permissions.groups_view.value])),
-        session: AsyncSession = Depends(get_async_session)
+        session: AsyncSession = Depends(get_async_session),
+        limit: int = 10,
+        page: int = 1,
     ):
 
-    stmt = select(group_db.c.id, group_db.c.name, group_db.c.permissions, group_db.c.is_default)
+    limit = min(max(1, limit), 60)
+    page = max(1, page) - 1
+
+    stmt = select(group_db.c.id, group_db.c.name, group_db.c.permissions, group_db.c.is_default).limit(limit).offset(page * limit)
     data = await session.execute(stmt)
 
     data = data.fetchall()

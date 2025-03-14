@@ -70,10 +70,15 @@ async def get_room(
 
 @router.get('/', response_model=list[RoomRead])
 async def get_all_rooms(
+        limit: int = 10,
+        page: int = 1,
         session: AsyncSession = Depends(get_async_session)
     ):
 
-    select_statement = room_db.select()
+    limit = min(max(1, limit), 60)
+    page = max(1, page) - 1
+
+    select_statement = room_db.select().limit(limit).offset(page * limit)
     rows = (await session.execute(select_statement)).fetchall()
 
     if rows is None:

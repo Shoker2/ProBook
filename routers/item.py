@@ -72,10 +72,15 @@ async def get_item(
 @router.get('/', response_model=list[ItemRead])
 async def get_all_items(
         room_id: int | None = None,
+        limit: int = 10,
+        page: int = 1,
         session: AsyncSession = Depends(get_async_session)
     ):
 
-    select_statement = item_db.select()
+    limit = min(max(1, limit), 60)
+    page = max(1, page) - 1
+
+    select_statement = item_db.select().limit(limit).offset(page * limit)
 
     if room_id is not None:
         select_statement = select_statement.where(item_db.c.room_id == room_id)

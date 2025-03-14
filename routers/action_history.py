@@ -44,10 +44,16 @@ async def get_all_actions(
         subject_uuid: uuid.UUID | None = None,
         object_table: str | None = None,
         object_id: int | str | None = None,
+        limit: int = 10,
+        page: int = 1,
         user: UserToken = Depends(get_depend_user_with_perms([Permissions.action_history_view.value])),
         session: AsyncSession = Depends(get_async_session)
     ):
-    select_statement = action_history_db.select()
+    
+    limit = min(max(1, limit), 60)
+    page = max(1, page) - 1
+    
+    select_statement = action_history_db.select().limit(limit).offset(page * limit)
 
     if action is not None:
         select_statement = select_statement.where(action_history_db.c.action == action)
