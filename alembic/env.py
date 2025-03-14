@@ -19,14 +19,8 @@ DB_PASS = config_backend["Database"]["DB_PASS"]
 # access to the values within the .ini file in use.
 config = context.config
 
-section = config.config_ini_section
-
-config.set_section_option(section,"DB_HOST",DB_HOST)
-config.set_section_option(section,"DB_PORT",DB_PORT)
-config.set_section_option(section,"DB_USER",DB_USER)
-config.set_section_option(section,"DB_NAME",DB_NAME)
-config.set_section_option(section,"DB_PASS",DB_PASS)
-
+db_url = f'postgresql://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/{DB_NAME}'
+config.set_main_option("sqlalchemy.url", db_url)
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.

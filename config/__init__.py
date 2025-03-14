@@ -2,10 +2,10 @@ from .Configure import Configure
 
 config = Configure(default_config={
     "Database": {
-        "DB_HOST": "",
-        "DB_PORT": "",
-        "DB_NAME": "",
-        "DB_USER": "",
+        "DB_HOST": "db",
+        "DB_PORT": "5432",
+        "DB_NAME": "probook",
+        "DB_USER": "postgres",
         "DB_PASS": "",
     },
     "SMTP": {
@@ -15,7 +15,7 @@ config = Configure(default_config={
         "password": ""
     },
     "Redis": {
-        "host": "localhost",
+        "host": "redis",
         "port": 6379
     },
     "Miscellaneous": {
@@ -23,6 +23,7 @@ config = Configure(default_config={
     },
     "Microsoft": {
         "client_id": "",
-        "client_secret": ""
+        "client_secret": "",
+        "redirect_url": "http://localhost:8000/auth/microsoft/token"
     }
 })
