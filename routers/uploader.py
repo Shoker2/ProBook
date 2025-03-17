@@ -16,6 +16,7 @@ from ..auth import UserToken
 from datetime import datetime
 from ..config import config
 from ..permissions import Permissions, get_depend_user_with_perms
+import logging
 
 router = APIRouter(
     prefix="/img",
@@ -48,6 +49,7 @@ async def upload(
         with open(new_path, "wb") as buffer:
             buffer.write(await file.read())
     except Exception as e:
+        logging.exception(e)
         raise HTTPException(status_code=500, detail="Failed to save file")
 
     res = ImgSave(

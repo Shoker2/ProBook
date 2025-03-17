@@ -3,10 +3,14 @@ from ..config import config
 from ..schemas import *
 from ..database import redis_db, get_async_session
 from ..auth import *
+from .uploader import upload as upload_file
+from ..database import redis_db
 
-from fastapi import APIRouter, HTTPException, Request, Depends, Body, status
+from fastapi import APIRouter, HTTPException, Request, Depends, Body, status, UploadFile
+from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from httpx_oauth.oauth2 import RefreshTokenError, GetAccessTokenError
+import io
 
 router = APIRouter(
     prefix="/auth",
@@ -103,6 +107,55 @@ async def get_microsoft_user_by_uuid(uuid: str, user: UserToken = Depends(get_cu
         new_token=user.new_token,
         result=user_info_response.json()
     )
+
+
+@router_microsoft.get("/users/me/photo",
+    summary="Get Microsoft My Photo",
+    response_model=BaseTokenResponse[str]
+)
+async def get_microsoft_me_photo(user: UserToken = Depends(get_current_user)):
+    return await get_microsoft_user_photo(str(user.uuid), user)
+
+@router_microsoft.get("/users/{uuid}/photo",
+    summary="Get Microsoft User Photo",
+    response_model=BaseTokenResponse[str]
+)
+async def get_microsoft_user_photo(uuid: str, user: UserToken = Depends(get_current_user)):
+    """
+    Fetch the user's photo from Microsoft Graph API.
+    """
+    prefix = 'probook:user_image:'
+    image_path = await redis_db.get(f"{prefix}{uuid}")
+    
+    if image_path is None:
+        async with microsoft_oauth_client.get_httpx_client() as client:
+            user_photo_response = await client.get(
+                f"https://graph.microsoft.com/v1.0/users/{uuid}/photo/$value",
+                headers={"Authorization": f"Bearer {user.microsoft_access_token}"}
+            )
+
+        if user_photo_response.status_code != 200:
+            raise HTTPException(status_code=user_photo_response.status_code, detail=FAILED_FETCH_USER_INFO)
+        
+        file_content = user_photo_response.content
+
+        file = UploadFile(
+            filename=f"{uuid}.jpg",
+            file=io.BytesIO(file_content),
+            headers={"content-type": "image/jpeg"}
+        )
+
+        img_save = (await upload_file(user, file)).result
+        image_path = img_save.file_name
+
+        await redis_db.set(f"{prefix}{uuid}", image_path, ex=7200)
+        await redis_db.set(f"{prefix}{uuid}_value", image_path)
+
+    return BaseTokenResponse(
+        new_token=user.new_token,
+        result=image_path
+    )
+
 
 @router_users.get('/me', response_model=BaseTokenResponse[UserRead])
 async def get_me_user(user: UserToken = Depends(get_current_user)):

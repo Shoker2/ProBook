@@ -1,7 +1,9 @@
 from fastapi import FastAPI, Depends, Request, HTTPException
 from fastapi.responses import JSONResponse
 import json
-import os
+import logging
+import asyncio
+
 from fastapi.staticfiles import StaticFiles
 from .routers.auth import router as auth_router
 from .routers.group import router as group_router
@@ -22,15 +24,11 @@ from sqlalchemy import (
 from .database import async_session_maker
 from .mock_data import schedule_template
 from .models_ import schedule
-
+from .services import subscribe_expired_keys
 
 app = FastAPI(
     title="TP2 API",
 )
-
-if not os.path.exists(STATIC_IMAGES_DIR):
-    os.makedirs(STATIC_IMAGES_DIR)
-app.mount("/images/", StaticFiles(directory=STATIC_IMAGES_DIR), name="img")
 
 routers = [
     auth_router,
@@ -90,6 +88,8 @@ async def root(user: UserToken = Depends(get_current_user)):
 
 @app.on_event("startup")
 async def startup_event():
+    app.state.expired_keys_task = asyncio.create_task(subscribe_expired_keys())
+
     async with async_session_maker() as session:
         for date, schedule_times in schedule_template.items():
 
@@ -106,3 +106,21 @@ async def startup_event():
                 )
                 await session.execute(stmt)
                 await session.commit()
+
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    task = app.state.expired_keys_task
+    task.cancel()
+
+    try:
+        await task
+    except asyncio.CancelledError:
+        logging.info("Background task cancelled")
+
+    from .services.tmp_image_remover import pubsub
+    if pubsub:
+        await pubsub.unsubscribe('__keyevent@0__:expired')
+        await pubsub.close()
+    
+    await redis_db.close()
