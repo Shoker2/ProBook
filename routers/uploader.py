@@ -28,7 +28,7 @@ ALGORITHM = "HS256"
 SECRET = config['Miscellaneous']['secret']
 
 
-@router.post("/upload", response_model=BaseTokenResponse[ImgSave])
+@router.post("/", response_model=BaseTokenResponse[ImgSave])
 async def upload(
     current_user: UserToken = Depends(get_depend_user_with_perms([Permissions.image_upload.value])),
     file: UploadFile = File(...)

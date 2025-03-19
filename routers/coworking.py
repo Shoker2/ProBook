@@ -50,7 +50,7 @@ router = APIRouter(
 
 
 @router.post(
-    "/create",
+    "/",
     response_model=CoworkingCreate
 )
 async def create_coworking(

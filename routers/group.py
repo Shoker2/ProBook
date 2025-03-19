@@ -20,7 +20,7 @@ router = APIRouter(
 
 OBJECT_TABLE = "groups"
 
-@router.post('/create', response_model=BaseTokenResponse[GroupRead])
+@router.post('/', response_model=BaseTokenResponse[GroupRead])
 async def create_group(
         group: GroupCreate,
         user: UserToken = Depends(get_depend_user_with_perms([Permissions.groups_create.value])),

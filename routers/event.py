@@ -50,7 +50,7 @@ router = APIRouter(
 
 
 @router.post(
-    "/create",
+    "/",
     response_model=EventCreate
 )
 async def create_event(

@@ -122,7 +122,7 @@ async def update_template(
         result=response
     )
     
-@router.post("/create", response_model=BaseTokenResponse[ScheduleResponse])
+@router.post("/", response_model=BaseTokenResponse[ScheduleResponse])
 async def create_schedule(
     schedule_data: CreateSchedule,
     current_user: UserToken = Depends(get_current_user),

@@ -20,7 +20,7 @@ router = APIRouter(
 
 OBJECT_TABLE = "item"
 
-@router.post('/create', response_model=BaseTokenResponse[ItemRead])
+@router.post('/', response_model=BaseTokenResponse[ItemRead])
 async def create_item(
         item: ItemCreate,
         user: UserToken = Depends(get_depend_user_with_perms([Permissions.items_create.value])),
