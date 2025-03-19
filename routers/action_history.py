@@ -1,9 +1,9 @@
-from ..details import *
-from ..config import config
-from ..schemas import *
-from ..auth import *
-from ..models_ import action_history as action_history_db
-from ..permissions import get_depend_user_with_perms, Permissions
+from details import *
+from config import config
+from schemas import *
+from auth import *
+from models_ import action_history as action_history_db
+from permissions import get_depend_user_with_perms, Permissions
 
 from fastapi import APIRouter, HTTPException, Request, Depends, Body, status
 from sqlalchemy.ext.asyncio import AsyncSession

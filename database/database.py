@@ -1,10 +1,10 @@
-from ..config import config
+from config import config
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from typing import AsyncGenerator, Optional
 from fastapi import Depends
 from sqlalchemy import Integer, Column, String, TIMESTAMP, Boolean, ARRAY, UUID
 from datetime import datetime
-from ..config import config
+from config import config
 from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy import update, select, insert, delete
 import uuid
@@ -12,9 +12,9 @@ import uuid
 from fastapi import HTTPException, status
 import jwt
 from jwt.exceptions import InvalidTokenError
-from ..schemas import UserToken, UserCreate, UserRead
+from schemas import UserToken, UserCreate, UserRead
 from redis.asyncio.client import Redis
-from ..models_ import user, group
+from models_ import user, group
 
 redis_db = Redis(
     host=config["Redis"]["host"],

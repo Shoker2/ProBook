@@ -7,17 +7,17 @@ from fastapi import (
 from sqlalchemy.dialects.postgresql import ARRAY, UUID as pg_UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import date, datetime
-from ..schemas.token import BaseTokenResponse
-from ..database import get_async_session
-from ..permissions.utils import checking_for_permission
-from ..permissions import Permissions
-from ..schemas.event import (
+from schemas.token import BaseTokenResponse
+from database import get_async_session
+from permissions.utils import checking_for_permission
+from permissions import Permissions
+from schemas.event import (
     EventRead,
     EventCreate,
     EventEdit,
 )
 from uuid import UUID
-from ..models_ import (
+from models_ import (
     event as event_db,
     user as user_db,
     room as room_db,
@@ -37,12 +37,12 @@ from sqlalchemy import (
 )
 from http import HTTPStatus
 from typing import List
-from ..auth import (
+from auth import (
     get_current_user,
     UserToken,
 )
-from ..details import *
-from ..shared import time_manager
+from details import *
+from shared import time_manager
 router = APIRouter(
     prefix="/events",
     tags=["events"]

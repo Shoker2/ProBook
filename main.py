@@ -4,27 +4,26 @@ import json
 import logging
 import asyncio
 
-from fastapi.staticfiles import StaticFiles
-from .routers.auth import router as auth_router
-from .routers.group import router as group_router
-from .routers.event import router as event_router
-from .routers.coworking import router as coworking_router
-from .routers.permissions import router as permissions_router
-from .routers.item import router as items_router
-from .routers.uploader import router as uploader_router, STATIC_IMAGES_DIR
-from .routers.schedule import router as schedule_router
-from .routers.room import router as room_router
-from .routers.action_history import router as action_history_router
-from .auth import *
-from .schemas import *
+from routers.auth import router as auth_router
+from routers.group import router as group_router
+from routers.event import router as event_router
+from routers.coworking import router as coworking_router
+from routers.permissions import router as permissions_router
+from routers.item import router as items_router
+from routers.uploader import router as uploader_router, STATIC_IMAGES_DIR
+from routers.schedule import router as schedule_router
+from routers.room import router as room_router
+from routers.action_history import router as action_history_router
+from auth import *
+from schemas import *
 from sqlalchemy import (
     select,
     insert
 )
-from .database import async_session_maker
-from .mock_data import schedule_template
-from .models_ import schedule
-from .services import subscribe_expired_keys
+from database import async_session_maker
+from mock_data import schedule_template
+from models_ import schedule
+from services import subscribe_expired_keys
 
 app = FastAPI(
     title="TP2 API",

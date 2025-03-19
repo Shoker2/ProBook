@@ -1,17 +1,17 @@
 
-from ..details import *
-from ..config import config
-from ..schemas import *
-from ..database import redis_db, get_async_session
-from ..auth import *
-from ..models_ import group as group_db, user as user_db
-from ..permissions import get_depend_user_with_perms, Permissions
+from details import *
+from config import config
+from schemas import *
+from database import redis_db, get_async_session
+from auth import *
+from models_ import group as group_db, user as user_db
+from permissions import get_depend_user_with_perms, Permissions
 
 from fastapi import APIRouter, HTTPException, Request, Depends, Body, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from httpx_oauth.oauth2 import RefreshTokenError, GetAccessTokenError
 from sqlalchemy import update, select, insert, delete
-from ..action_history import *
+from action_history import *
 
 router = APIRouter(
     prefix="/groups",

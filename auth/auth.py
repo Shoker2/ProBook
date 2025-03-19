@@ -6,11 +6,11 @@ from fastapi.security import APIKeyHeader
 import jwt
 from jwt.exceptions import InvalidTokenError, ExpiredSignatureError
 from datetime import datetime, timedelta, timezone
-from ..schemas import *
-from ..models_ import user, group as group_db
-from ..database import *
-from ..details import *
-from ..config import config
+from schemas import *
+from models_ import user, group as group_db
+from database import *
+from details import *
+from config import config
 from httpx_oauth.clients.microsoft import MicrosoftGraphOAuth2
 from httpx_oauth.oauth2 import RefreshTokenError
 

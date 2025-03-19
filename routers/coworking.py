@@ -4,7 +4,7 @@ from fastapi import (
     Depends,
     Query
 )
-from ..schemas.coworking import (
+from schemas.coworking import (
     CoworkingCreate,
     CoworkingEdit,
     CoworkingRead,
@@ -12,12 +12,12 @@ from ..schemas.coworking import (
 )
 from datetime import datetime, date
 from typing import List
-from ..auth import get_current_user
-from ..database import get_async_session
+from auth import get_current_user
+from database import get_async_session
 from sqlalchemy.ext.asyncio import AsyncSession
-from ..auth import UserToken
+from auth import UserToken
 from http import HTTPStatus
-from ..details import *
+from details import *
 from sqlalchemy import (
     select,
     insert,
@@ -30,13 +30,13 @@ from sqlalchemy import (
     Integer
 )
 from sqlalchemy.dialects.postgresql import ARRAY, INTEGER
-from ..permissions import (
+from permissions import (
     checking_for_permission,
     Permissions,
 )
-from ..shared import time_manager
+from shared import time_manager
 import uuid
-from ..models_ import (
+from models_ import (
     user as user_db,
     personal_reservation as coworking_db,
     room as room_db,

@@ -1,5 +1,5 @@
-from ..models_ import action_history as action_history_db
-from ..schemas import ActionHistoryCreate
+from models_ import action_history as action_history_db
+from schemas import ActionHistoryCreate
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from enum import Enum

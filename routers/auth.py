@@ -1,10 +1,10 @@
-from ..details import *
-from ..config import config
-from ..schemas import *
-from ..database import redis_db, get_async_session
-from ..auth import *
+from details import *
+from config import config
+from schemas import *
+from database import redis_db, get_async_session
+from auth import *
 from .uploader import upload as upload_file
-from ..database import redis_db
+from database import redis_db
 
 from fastapi import APIRouter, HTTPException, Request, Depends, Body, status, UploadFile
 from fastapi.responses import StreamingResponse

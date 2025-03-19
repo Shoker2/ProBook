@@ -3,19 +3,19 @@ from fastapi import (
     HTTPException,
     UploadFile
 )
-from ..schemas.token import BaseTokenResponse
+from schemas.token import BaseTokenResponse
 from fastapi.params import Depends, File
 import os
 import hmac
 import hashlib
-from ..auth import get_current_user
-from ..schemas.uploader import (
+from auth import get_current_user
+from schemas.uploader import (
     ImgSave,
     ImgDelete)
-from ..auth import UserToken
+from auth import UserToken
 from datetime import datetime
-from ..config import config
-from ..permissions import Permissions, get_depend_user_with_perms
+from config import config
+from permissions import Permissions, get_depend_user_with_perms
 import logging
 
 router = APIRouter(

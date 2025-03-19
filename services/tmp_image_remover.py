@@ -1,6 +1,6 @@
 import logging
-from ..routers.uploader import STATIC_IMAGES_DIR
-from ..database import redis_db
+from routers.uploader import STATIC_IMAGES_DIR
+from database import redis_db
 
 import os
 from redis.exceptions import ConnectionError

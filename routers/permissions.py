@@ -3,12 +3,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from functools import partial
 from sqlalchemy import update, select, insert, delete
 
-from ..details import *
-from ..config import config
-from ..schemas import *
-from ..auth import *
-from ..models_ import group as group_db
-from ..permissions import get_depend_user_with_perms, Permissions, PERMISSION_DESC
+from details import *
+from config import config
+from schemas import *
+from auth import *
+from models_ import group as group_db
+from permissions import get_depend_user_with_perms, Permissions, PERMISSION_DESC
 
 
 router = APIRouter(

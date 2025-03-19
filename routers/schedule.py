@@ -3,9 +3,9 @@ from fastapi import (
     HTTPException,
     Depends
 )
-from ..database import get_async_session
+from database import get_async_session
 from sqlalchemy.ext.asyncio import AsyncSession
-from ..schemas.token import BaseTokenResponse
+from schemas.token import BaseTokenResponse
 from http import HTTPStatus
 from sqlalchemy import (
     select,
@@ -13,17 +13,17 @@ from sqlalchemy import (
     delete,
     update,
 )
-from ..auth import (
+from auth import (
     UserToken,
     get_current_user,
 )
 from sqlalchemy import cast, Date
-from ..permissions import Permissions, get_depend_user_with_perms
-from ..details import *
-from ..models_ import schedule
-from ..schemas import ScheduleItem, ScheduleResponse, TemplateScheduleUpdate, CreateSchedule, TemplateResponse, TemplateItem
+from permissions import Permissions, get_depend_user_with_perms
+from details import *
+from models_ import schedule
+from schemas import ScheduleItem, ScheduleResponse, TemplateScheduleUpdate, CreateSchedule, TemplateResponse, TemplateItem
 from datetime import datetime, timedelta, date
-from ..shared import get_week_dates, validate_time_intervals
+from shared import get_week_dates, validate_time_intervals
 
 
 SCHEDULE_TEMPLATE = {
