@@ -3,6 +3,7 @@ from fastapi.responses import JSONResponse
 import json
 import logging
 import asyncio
+import uvicorn
 
 from routers.auth import router as auth_router
 from routers.group import router as group_router
@@ -123,3 +124,6 @@ async def shutdown_event():
         await pubsub.close()
     
     await redis_db.close()
+
+if __name__ == "__main__":
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
