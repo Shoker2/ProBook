@@ -10,6 +10,7 @@ from fastapi import APIRouter, HTTPException, Request, Depends, Body, status, Up
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from httpx_oauth.oauth2 import RefreshTokenError, GetAccessTokenError
+from auth.auth import get_user_by_uuid as get_user_by_uuid_db
 import io
 
 router = APIRouter(
@@ -167,7 +168,7 @@ async def get_me_user(user: UserToken = Depends(get_current_user)):
 @router_users.get('/{uuid}', response_model=BaseTokenResponse[UserRead])
 async def get_user_by_uuid(uuid: str, user: UserToken = Depends(get_current_user), session: AsyncSession = Depends(get_async_session)):
 
-    find_user = await get_user_by_uuid(uuid, session)
+    find_user = await get_user_by_uuid_db(uuid, session)
 
     return BaseTokenResponse(
         new_token=user.new_token,

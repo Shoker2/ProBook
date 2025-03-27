@@ -35,6 +35,10 @@ class Permissions(Enum):
 
     action_history_view = "action_history.view"
     
+    worker_create = "worker.create"
+    worker_delete = "worker.delete"
+
+    
 PERMISSION_DESC = {
     Permissions.groups_create.value: "Creation group",
     Permissions.groups_delete.value: "Delete group",

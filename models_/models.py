@@ -107,3 +107,9 @@ action_history = Table(
     Column("object_id", String, nullable=False),
     Column("detail", JSON, nullable=False),
 )
+
+worker = Table(
+    "worker",
+    meta_data,
+    Column("user_uuid", ForeignKey("user.uuid"), nullable=False)
+)

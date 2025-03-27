@@ -32,3 +32,10 @@ class UserToken(UserRead):
 class UserGroup(BaseModel):
     user_uuid: uuid.UUID
     group_id: int | None = None
+
+
+class WorkerDBRead(BaseModel):
+    user_uuid: uuid.UUID
+
+class WorkerCreate(BaseModel):
+    user_uuid: uuid.UUID

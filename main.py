@@ -15,6 +15,7 @@ from routers.uploader import router as uploader_router, STATIC_IMAGES_DIR
 from routers.schedule import router as schedule_router
 from routers.room import router as room_router
 from routers.action_history import router as action_history_router
+from routers.workers import router as workers_router
 from auth import *
 from schemas import *
 from sqlalchemy import (
@@ -25,6 +26,7 @@ from database import async_session_maker
 from mock_data import schedule_template
 from models_ import schedule
 from services import subscribe_expired_keys
+from services.tmp_image_remover import pubsub
 
 app = FastAPI(
     title="TP2 API",
@@ -40,7 +42,8 @@ routers = [
     uploader_router,
     schedule_router,
     room_router,
-    action_history_router
+    action_history_router,
+    workers_router
 ]
 
 for router in routers:
@@ -118,7 +121,6 @@ async def shutdown_event():
     except asyncio.CancelledError:
         logging.info("Background task cancelled")
 
-    from .services.tmp_image_remover import pubsub
     if pubsub:
         await pubsub.unsubscribe('__keyevent@0__:expired')
         await pubsub.close()
