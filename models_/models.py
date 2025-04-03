@@ -7,6 +7,7 @@ from sqlalchemy import (
     TIMESTAMP,
     ARRAY,
     Boolean,
+    SMALLINT,
     CheckConstraint,
     Float,
     ForeignKey,
@@ -64,7 +65,9 @@ personal_reservation = Table(
            nullable=False, server_default="{}"),
     Column("date_start", TIMESTAMP, nullable=False),
     Column("date_end", TIMESTAMP, nullable=False),
-    Column("moderated", Boolean, nullable=False, server_default="false")
+    Column("status", SMALLINT, nullable=False, server_default="0"),
+    
+    Column("cause_cancel", TEXT, nullable=False, server_default="")
 )
 
 event = Table(
@@ -85,7 +88,9 @@ event = Table(
 
     Column("date_start", TIMESTAMP, nullable=False),
     Column("date_end", TIMESTAMP, nullable=False),
-    Column("moderated", Boolean, nullable=False, server_default="false")
+    Column("status", SMALLINT, nullable=False, server_default="0"), # 0 - Not moderated, 1 - approve, 2 - reject
+
+    Column("cause_cancel", TEXT, nullable=False, server_default="")
 )
 
 schedule = Table(

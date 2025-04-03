@@ -15,6 +15,7 @@ from schemas.event import (
     EventRead,
     EventCreate,
     EventEdit,
+    Status as app_status
 )
 from uuid import UUID
 from models_ import (
@@ -69,7 +70,8 @@ async def create_event(
     room_result = await session.execute(room_query)
     room = room_result.first()
 
-    event_data.moderated = event_data.moderated and checking_for_permission(Permissions.events_moderate.value, user)
+    if not checking_for_permission(Permissions.events_moderate.value, user):
+        event_data.status = app_status.not_moderated.value
 
     if not room:
         raise HTTPException(
@@ -149,6 +151,7 @@ async def my_events(
         needable_items: List[int] | None = Query(None, description="Необязательный фильтр по предметам"),
         date_start: datetime | None = Query(None, description="Начальная дата"),
         date_end: datetime | None = Query(None, description="Конечная дата"),
+        status: int | None = None,
         limit: int = 10,
         page: int = 1,
 ):
@@ -161,6 +164,7 @@ async def my_events(
         by_user = str(current_user.uuid),
         limit = limit,
         page = page,
+        status = status
     )
 
 
@@ -198,6 +202,7 @@ async def get_events(
     date_start: datetime | None = Query(None, description="Начальная дата"),
     date_end: datetime | None = Query(None, description="Конечная дата"),
     by_user: str | None = Query(None, description="Кем был создан ивент"),
+    status: int | None = None,
     limit: int = 10,
     page: int = 1,
 ):
@@ -205,6 +210,9 @@ async def get_events(
     page = max(1, page) - 1
 
     query = select(event_db).limit(limit).offset(page * limit)
+
+    if status is not None:
+        query = query.where(event_db.c.status == status)
 
     if date_start is not None and date_end is not None:
         query = query.where(
@@ -293,7 +301,7 @@ async def edit_event(
     session: AsyncSession = Depends(get_async_session)
 ):
 
-    if event_data.moderated is not None:
+    if event_data.status is not None:
         is_moderator = checking_for_permission(
             Permissions.events_moderate.value, user)
         if not is_moderator:

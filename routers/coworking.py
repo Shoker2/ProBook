@@ -9,6 +9,7 @@ from schemas.coworking import (
     CoworkingEdit,
     CoworkingRead,
     ReadItem,
+    Status as app_status
 )
 from datetime import datetime, date
 from typing import List
@@ -83,7 +84,8 @@ async def create_coworking(
     room_result = await session.execute(room_query)
     room = room_result.first()
 
-    coworking_data.moderated = coworking_data.moderated and checking_for_permission(Permissions.coworkings_moderate.value, user)
+    if not checking_for_permission(Permissions.coworkings_moderate.value, user):
+        coworking_data.status = app_status.not_moderated.value
 
     if not room:
         raise HTTPException(
@@ -93,7 +95,6 @@ async def create_coworking(
 
     coworking_dict = coworking_data.model_dump()
     coworking_dict['user_uuid'] = user.uuid
-    coworking_dict['moderated'] = False
     if coworking_dict['date_start'].tzinfo is not None:
         coworking_dict['date_start'] = coworking_dict['date_start'].replace(
             tzinfo=None)
@@ -149,6 +150,7 @@ async def my_coworkings(
         needable_items: List[int] | None = Query(None, description="Необязательный фильтр по предметам"),
         date_start: datetime | None = Query(None, description="Начальная дата"),
         date_end: datetime | None = Query(None, description="Конечная дата"),
+        status: int | None = None,
         limit: int = 10,
         page: int = 1,
 ):
@@ -160,7 +162,8 @@ async def my_coworkings(
         date_end = date_end,
         by_user = str(current_user.uuid),
         limit = limit,
-        page = page
+        page = page,
+        status = status
     )
 
 
@@ -196,6 +199,7 @@ async def get_coworkings(
     date_start: datetime | None = Query(None, description="Начальная дата"),
     date_end: datetime | None = Query(None, description="Конечная дата"),
     by_user: str | None = Query(None, description="Кем был создан ивент"),
+    status: int | None = None,
     limit: int = 10,
     page: int = 1,
 ):
@@ -203,6 +207,9 @@ async def get_coworkings(
     page = max(1, page) - 1
 
     query = select(coworking_db).limit(limit).offset(page * limit)
+
+    if status is not None:
+        query = query.where(coworking_db.c.status == status)
 
     if date_start is not None and date_end is not None:
         query = query.where(
@@ -295,7 +302,7 @@ async def edit_coworking(
     session: AsyncSession = Depends(get_async_session)
 ):
 
-    if coworking_data.moderated is not None:
+    if coworking_data.status is not None:
         is_moderator = checking_for_permission(
             Permissions.coworkings_moderate.value, user)
         if not is_moderator:
