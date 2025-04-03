@@ -106,6 +106,7 @@ async def create_coworking(
     overlapping_query = select(coworking_db).where(
         and_(
             coworking_db.c.room_id == coworking_data.room_id,
+            coworking_db.c.status == app_status.approve.value,
             func.date(coworking_db.c.date_start) == func.date(
                 coworking_dict['date_start']),
             or_(
@@ -379,6 +380,7 @@ async def edit_coworking(
         overlapping_query = select(coworking_db).where(
             and_(
                 coworking_db.c.id != coworking_data.id,  # Exclude current coworking
+                coworking_db.c.status == app_status.approve.value,
                 coworking_db.c.room_id == coworking.room_id,
                 func.date(coworking_db.c.date_start) == func.date(
                     coworking_data.date_start),

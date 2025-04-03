@@ -106,6 +106,7 @@ async def create_event(
 
     overlapping_events_query = select(event_db).where(
         and_(
+            event_db.c.status == app_status.approve.value,
             event_db.c.room_id == event_data.room_id,
             func.date(event_db.c.date_start) == func.date(
                 event_dict['date_start']),
@@ -378,6 +379,7 @@ async def edit_event(
             and_(
                 event_db.c.id != event_data.id,
                 event_db.c.room_id == event_data.room_id,
+                event_db.c.status == app_status.approve.value,
                 func.date(event_db.c.date_start) == func.date(
                     event_data.date_start),
                 or_(
