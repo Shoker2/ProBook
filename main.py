@@ -25,7 +25,7 @@ from sqlalchemy import (
 from database import async_session_maker
 from mock_data import schedule_template
 from models_ import schedule, room as room_db
-from services import subscribe_expired_keys
+from services import subscribe_expired_keys, repeat_event_updater
 from services.tmp_image_remover import pubsub
 
 app = FastAPI(
@@ -92,6 +92,8 @@ async def root(user: UserToken = Depends(get_current_user)):
 @app.on_event("startup")
 async def startup_event():
     app.state.expired_keys_task = asyncio.create_task(subscribe_expired_keys())
+
+    asyncio.create_task(repeat_event_updater())
 
     async with async_session_maker() as session:
         query = select(room_db.c.id)
