@@ -27,15 +27,16 @@ from shared import get_week_dates, validate_time_intervals
 
 
 SCHEDULE_TEMPLATE = {
-    1: "1000-01-01",
-    2: "1000-01-02",
-    3: "1000-01-03",
-    4: "1000-01-04",
-    5: "1000-01-05",
-    6: "1000-01-06",
-    7: "1000-01-07"
+    1: datetime(1000, 1, 1),
+    2: datetime(1000, 1, 2),
+    3: datetime(1000, 1, 3),
+    4: datetime(1000, 1, 4),
+    5: datetime(1000, 1, 5),
+    6: datetime(1000, 1, 6),
+    7: datetime(1000, 1, 7)
 }
 
+STR_DATE_TO_DAY_NUMBER = {v.strftime('%Y-%m-%d'): k for k, v in SCHEDULE_TEMPLATE.items()}
 
 router = APIRouter(
     prefix="/schedule",
@@ -43,25 +44,25 @@ router = APIRouter(
 )
 
 
-@router.get("/template", response_model=TemplateResponse)
+@router.get("/template/{room_id}", response_model=TemplateResponse)
 async def get_template(
+    room_id: int,
     session: AsyncSession = Depends(get_async_session)
 ):
     query = select(schedule).where(
         schedule.c.date.between(
-            datetime.strptime(SCHEDULE_TEMPLATE[1], '%Y-%m-%d').date(),
-            datetime.strptime(SCHEDULE_TEMPLATE[7], '%Y-%m-%d').date()  
-        )
+            SCHEDULE_TEMPLATE[1].date(),
+            SCHEDULE_TEMPLATE[7].date()  
+        ),
+        schedule.c.room_id == room_id
     ).order_by(schedule.c.date)
     
     result = await session.execute(query)
     schedules = result.fetchall()
     
-    date_to_day = {v: k for k, v in SCHEDULE_TEMPLATE.items()}
-    
     schedule_items = [
         TemplateItem(
-            day_number=date_to_day[row.date.strftime('%Y-%m-%d')],
+            day_number=STR_DATE_TO_DAY_NUMBER[row.date.strftime('%Y-%m-%d')],
             schedule_time=row.schedule_time
         )
         for row in schedules
@@ -70,8 +71,9 @@ async def get_template(
     return TemplateResponse(result=schedule_items)
 
 
-@router.put("/template", response_model=BaseTokenResponse[ScheduleResponse])
+@router.put("/template/{room_id}", response_model=BaseTokenResponse[ScheduleResponse])
 async def update_template(
+    room_id: int,
     update_data: TemplateScheduleUpdate,
     current_user: UserToken = Depends(get_depend_user_with_perms([Permissions.template_change.value])),
     session: AsyncSession = Depends(get_async_session)
@@ -92,17 +94,11 @@ async def update_template(
         )
 
     template_date = SCHEDULE_TEMPLATE[update_data.day_number]
-    try:
-        date_obj = datetime.strptime(template_date, '%Y-%m-%d').date()
-    
-    except ValueError:
-        raise HTTPException(
-            status_code=HTTPStatus.BAD_REQUEST,
-            detail=INVALID_DATE    
-        )
+    date_obj = template_date.date()
 
     stmt = update(schedule).where(
-        schedule.c.date == date_obj
+        schedule.c.date == date_obj,
+        schedule.c.room_id == room_id
     ).values(
         schedule_time=update_data.schedule_time
     )
@@ -122,8 +118,9 @@ async def update_template(
         result=response
     )
     
-@router.post("/", response_model=BaseTokenResponse[ScheduleResponse])
+@router.post("/{room_id}", response_model=BaseTokenResponse[ScheduleResponse])
 async def create_schedule(
+    room_id: int,
     schedule_data: CreateSchedule,
     current_user: UserToken = Depends(get_current_user),
     session: AsyncSession = Depends(get_async_session)
@@ -139,7 +136,7 @@ async def create_schedule(
     
     date_obj = schedule_data.date
         
-    query = select(schedule).where(schedule.c.date == date_obj)
+    query = select(schedule).where(schedule.c.date == date_obj, schedule.c.room_id == room_id)
     result = await session.execute(query)
     existing_schedule = result.first()
     
@@ -151,7 +148,8 @@ async def create_schedule(
 
     stmt = insert(schedule).values(
         date=date_obj,
-        schedule_time=schedule_data.schedule_time
+        schedule_time=schedule_data.schedule_time,
+        room_id=room_id
     )
     await session.execute(stmt)
     await session.commit()
@@ -171,21 +169,22 @@ async def create_schedule(
     )
 
 
-@router.delete("/{date}", response_model=BaseTokenResponse[ScheduleResponse])
+@router.delete("/{room_id}/{delete_date}", response_model=BaseTokenResponse[ScheduleResponse])
 async def delete_schedule(
-    date: date, 
+    room_id: int,
+    delete_date: date, 
     current_user: UserToken = Depends(get_depend_user_with_perms(Permissions.schedule_delete.value)),
     session: AsyncSession = Depends(get_async_session)
 ):
     
     template_dates = set(SCHEDULE_TEMPLATE.values())
-    if date.strftime("%Y-%m-%d") in template_dates:
+    if delete_date in template_dates:
         raise HTTPException(
             status_code=HTTPStatus.BAD_REQUEST,
             detail=TEMPLATE_DELETED
         )
     
-    date_obj = date
+    date_obj = delete_date
         
     query = select(schedule).where(schedule.c.date == date_obj)
     result = await session.execute(query)
@@ -197,7 +196,7 @@ async def delete_schedule(
             detail=SCHEDULE_NOT_FOUND
         )
     
-    stmt = delete(schedule).where(schedule.c.date == date_obj)
+    stmt = delete(schedule).where(schedule.c.date == date_obj, schedule.c.room_id == room_id)
     await session.execute(stmt)
     await session.commit()
     
@@ -216,8 +215,9 @@ async def delete_schedule(
     )
 
 
-@router.get("/week", response_model=ScheduleResponse)
+@router.get("/week/{room_id}", response_model=ScheduleResponse)
 async def get_week_schedule(
+    room_id: int,
     date: date | None = None,
     session: AsyncSession = Depends(get_async_session)
 ):
@@ -234,15 +234,17 @@ async def get_week_schedule(
 
     template_query = select(schedule).where(
         schedule.c.date.between(
-            datetime.strptime(SCHEDULE_TEMPLATE[1], '%Y-%m-%d').date(),
-            datetime.strptime(SCHEDULE_TEMPLATE[7], '%Y-%m-%d').date()
-        )
+            SCHEDULE_TEMPLATE[1].date(),
+            SCHEDULE_TEMPLATE[7].date()
+        ),
+        schedule.c.room_id == room_id
     ).order_by(schedule.c.date)
     template_result = await session.execute(template_query)
     template_schedule = template_result.fetchall()
 
     week_query = select(schedule).where(
-        schedule.c.date.between(monday, sunday)
+        schedule.c.date.between(monday, sunday),
+        schedule.c.room_id == room_id
     ).order_by(schedule.c.date)
     week_result = await session.execute(week_query)
     week_schedule = week_result.fetchall()

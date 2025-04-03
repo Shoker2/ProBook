@@ -1,4 +1,4 @@
-from pydantic import BaseModel, validator
+from pydantic import BaseModel, Field
 from typing import List
 from datetime import datetime, date
 import re
@@ -8,7 +8,7 @@ class ScheduleItem(BaseModel):
     schedule_time: List[str]
 
 class TemplateItem(BaseModel):
-    day_number: int
+    day_number: int  = Field(..., gt=0, le=7)
     schedule_time: List[str]
 
 
@@ -20,9 +20,8 @@ class ScheduleResponse(BaseModel):
 
 
 class TemplateScheduleUpdate(BaseModel):
-    day_number: int
+    day_number: int = Field(..., gt=0, le=7)
     schedule_time: List[str]
-
 
 
 class CreateSchedule(BaseModel):

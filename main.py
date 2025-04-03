@@ -24,7 +24,7 @@ from sqlalchemy import (
 )
 from database import async_session_maker
 from mock_data import schedule_template
-from models_ import schedule
+from models_ import schedule, room as room_db
 from services import subscribe_expired_keys
 from services.tmp_image_remover import pubsub
 
@@ -94,21 +94,29 @@ async def startup_event():
     app.state.expired_keys_task = asyncio.create_task(subscribe_expired_keys())
 
     async with async_session_maker() as session:
-        for date, schedule_times in schedule_template.items():
+        query = select(room_db.c.id)
+        room_id_result = await session.execute(query)
+        
+        for room_id in room_id_result.fetchall():
+            room_id = room_id[0]
 
-            date_obj = datetime.strptime(
-                date, '%d.%m.%Y').date()
+            for date, schedule_times in schedule_template.items():
 
-            query = select(schedule).where(date_obj == schedule.c.date)
-            result = await session.execute(query)
-            schedule_row = result.first()
-            if not schedule_row:
-                stmt = insert(schedule).values(
-                    date=date_obj,
-                    schedule_time=schedule_times
-                )
-                await session.execute(stmt)
-                await session.commit()
+                date_obj = datetime.strptime(
+                    date, '%d.%m.%Y').date()
+
+                query = select(schedule).where(date_obj == schedule.c.date, schedule.c.room_id == room_id)
+                result = await session.execute(query)
+                schedule_row = result.first()
+                if not schedule_row:
+                    stmt = insert(schedule).values(
+                        date=date_obj,
+                        schedule_time=schedule_times,
+                        room_id=room_id
+                    )
+                    await session.execute(stmt)
+            
+            await session.commit()
 
 
 @app.on_event("shutdown")
