@@ -10,6 +10,7 @@ from sqlalchemy import (
     SMALLINT,
     CheckConstraint,
     Float,
+    Sequence,
     ForeignKey,
     UUID,
     TEXT,
@@ -18,6 +19,8 @@ from sqlalchemy import (
 )
 from datetime import datetime
 meta_data = MetaData()
+
+EVENT_BASE_ID_SEQ = Sequence('event_base_id_seq', metadata=meta_data)
 
 group = Table(
     "group",
@@ -74,6 +77,8 @@ event = Table(
     "event",
     meta_data,
     Column("id", Integer, primary_key=True),
+    Column("event_base_id", Integer, EVENT_BASE_ID_SEQ, nullable=False, server_default=EVENT_BASE_ID_SEQ.next_value()),
+
     Column("room_id", ForeignKey("room.id"), nullable=False),
     Column("user_uuid", ForeignKey("user.uuid"), nullable=False),
     Column("info_for_moderator", TEXT, nullable=False),
