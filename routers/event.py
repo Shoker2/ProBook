@@ -13,12 +13,13 @@ from database import get_async_session
 from permissions.utils import checking_for_permission
 from permissions import Permissions
 from schemas.event import (
-    EventRead,
     EventCreate,
     EventEdit,
+    EventEditGroup,
+    EventRead,
     RepeatEventUpdate,
-    Status as app_status
-)
+    Repeatability,
+    Status as app_status)
 from uuid import UUID
 from models_ import (
     event as event_db,
@@ -46,7 +47,7 @@ from auth import (
     UserToken,
 )
 from details import *
-from shared.utils.events import get_max_date, create_events_before, check_overlapping
+from shared.utils.events import get_max_date, create_events_before, check_overlapping, repeatability
 from shared import time_manager
 router = APIRouter(
     prefix="/events",
@@ -82,6 +83,9 @@ async def create_event(
             status_code=HTTPStatus.NOT_FOUND,
             detail=ROOM_NOT_FOUND
         )
+    
+    if event_data.repeat not in Repeatability._value2member_map_:
+        event_data.repeat = Repeatability.NO.value
 
     if event_data.needable_items:
         items_query = select(item_db).where(
@@ -285,6 +289,7 @@ async def delete_event(
 
     return "OK"
 
+# repeat: str | None = None
 
 @router.put(
     "/",
@@ -342,7 +347,6 @@ async def edit_event(
         found_items = items_result.fetchall()
 
         if len(found_items) != len(event_data.needable_items):
-            found_ids = {item.id for item in found_items}
             raise HTTPException(
                 status_code=HTTPStatus.NOT_FOUND,
                 detail=ITEMS_NOT_FOUND
@@ -377,10 +381,37 @@ async def edit_event(
                 detail=ROOM_IS_ALREADY
             )
     
-    query = update(event_db).where(event_db.c.id == event_data.id).values(
-        **event_data.model_dump(exclude_none=True))
+    if for_group and (event_data.room_id is not None or event_data.date_start is not None or event_data.date_end is not None):
+        query = select(event_db).where(
+            event_db.c.event_base_id == event.event_base_id,
+            event_db.c.date_start >= datetime.now().replace(tzinfo=None),
+        ).order_by(event_db.c.date_start.asc()).limit(1)
+
+        res = await session.execute(query)
+        res = res.first()
+
+        repeat_res = RepeatEventUpdate(**res._mapping)
+
+        query = delete(event_db).where(
+            event_db.c.event_base_id == event.event_base_id,
+            event_db.c.date_start >= repeat_res.date_start
+        )
+        await session.execute(query)
+
+        repeat_res = repeat_res.model_copy(update=event_data.model_dump(exclude_none=True))
+
+        if repeat_res.status == app_status.approve.value:
+            await create_events_before(repeat_res, get_max_date(), session)
     
-    await session.execute(query)
+    elif for_group:
+        query = update(event_db).where(event_db.c.id == event_data.id).values(**event_data.model_dump(exclude_none=True))
+        await session.execute(query)
+
+    else:
+        query = update(event_db).where(event_db.c.event_base_id == event.event_base_id).values(**event_data.model_dump(exclude_none=True))
+        await session.execute(query)
+
+
     await session.commit()
 
     return event_data

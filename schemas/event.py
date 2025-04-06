@@ -10,6 +10,15 @@ class Status(Enum):
 	approve = 1
 	reject = 2
 
+
+class Repeatability(Enum):
+	NO = None
+	daily = 'daily'
+	weekly = 'weekly'
+	monthly = 'monthly'
+	yearly = 'yearly'
+
+
 class EventCreate(BaseModel):
 	room_id: int
 	info_for_moderator: str
@@ -22,7 +31,6 @@ class EventCreate(BaseModel):
 	needable_items: List[int] | None = []
 	status: int | None = Field(Status.not_moderated.value, gt=-1, le=2)
 
-
 class EventEdit(BaseModel):
 
 	id: int
@@ -34,9 +42,13 @@ class EventEdit(BaseModel):
 	repeat: str | None = None
 	date_start: datetime | None = None
 	date_end: datetime | None = None
-	status: int | None = Field(Status.not_moderated.value, gt=-1, le=2)
+	status: int | None = None
 	cause_cancel: str | None = None
 	needable_items: List[int] | None = None
+
+
+class EventEditGroup(EventEdit):
+	participants: List[uuid.UUID] | None = []
 
 
 class EventRead(EventEdit):

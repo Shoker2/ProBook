@@ -12,17 +12,17 @@ from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
 from fastapi import HTTPException, status
 
-from schemas.event import RepeatEventUpdate, Status
+from schemas.event import RepeatEventUpdate, Status, Repeatability
 from models_ import event as event_db
 from details import ROOM_IS_ALREADY
 
 TIMEDELTA = timedelta(days=40)
 
 repeatability = {
-	'daily': relativedelta(days=1),
-	'weekly': relativedelta(weeks=1),
-	'monthly': relativedelta(months=1),
-	'yearly': relativedelta(year=1)
+	Repeatability.daily.value: relativedelta(days=1),
+	Repeatability.weekly.value: relativedelta(weeks=1),
+	Repeatability.monthly.value: relativedelta(months=1),
+	Repeatability.yearly.value: relativedelta(year=1)
 }
 
 
@@ -89,10 +89,14 @@ async def check_overlapping(event_room_id: int, event_date_start: datetime, even
 	return result.first() is None
 
 
-async def create_events_before(event: RepeatEventUpdate, date_max: datetime, session: AsyncSession):
+async def create_events_before(event: RepeatEventUpdate, date_max: datetime, session: AsyncSession, create_current = False):
+	if event.repeat not in Repeatability._value2member_map_ or event.repeat is Repeatability.NO.value:
+		return
+	
 	while True:
-		event.date_start = event.date_start + repeatability[event.repeat]
-		event.date_end = event.date_end + repeatability[event.repeat]
+		if not create_current:
+			event.date_start = event.date_start + repeatability[event.repeat]
+			event.date_end = event.date_end + repeatability[event.repeat]
 
 		if event.date_start > date_max:
 			break
@@ -106,3 +110,7 @@ async def create_events_before(event: RepeatEventUpdate, date_max: datetime, ses
 		
 		stmt = insert(event_db).values(**event.model_dump())
 		await session.execute(stmt)
+
+		if create_current:
+			event.date_start = event.date_start + repeatability[event.repeat]
+			event.date_end = event.date_end + repeatability[event.repeat]
