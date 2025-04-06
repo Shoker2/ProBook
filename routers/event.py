@@ -2,7 +2,8 @@ from fastapi import (
     APIRouter,
     HTTPException,
     Depends,
-    Query
+    Query,
+    status
 )
 from sqlalchemy.dialects.postgresql import ARRAY, UUID as pg_UUID
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -15,6 +16,7 @@ from schemas.event import (
     EventRead,
     EventCreate,
     EventEdit,
+    RepeatEventUpdate,
     Status as app_status
 )
 from uuid import UUID
@@ -33,6 +35,7 @@ from sqlalchemy import (
     cast,
     or_,
     and_,
+    literal_column,
     func,
     Integer
 )
@@ -43,6 +46,7 @@ from auth import (
     UserToken,
 )
 from details import *
+from shared.utils.events import get_max_date, create_events_before, check_overlapping
 from shared import time_manager
 router = APIRouter(
     prefix="/events",
@@ -52,7 +56,7 @@ router = APIRouter(
 
 @router.post(
     "/",
-    response_model=EventCreate
+    response_model=EventRead
 )
 async def create_event(
     event_data: EventCreate,
@@ -104,41 +108,25 @@ async def create_event(
         event_dict['date_end'] = event_dict['date_end'].replace(
             tzinfo=None)
 
-    overlapping_events_query = select(event_db).where(
-        and_(
-            event_db.c.status == app_status.approve.value,
-            event_db.c.room_id == event_data.room_id,
-            func.date(event_db.c.date_start) == func.date(
-                event_dict['date_start']),
-            or_(
-                and_(
-                    event_db.c.date_start <= event_dict['date_start'],
-                    event_db.c.date_end > event_dict['date_start']
-                ),
-                and_(
-                    event_db.c.date_start < event_dict['date_end'],
-                    event_db.c.date_end >= event_dict['date_end']
-                ),
-                and_(
-                    event_db.c.date_start >= event_dict['date_start'],
-                    event_db.c.date_end <= event_dict['date_end']
-                )
-            )
-        )
-    )
-
-    result = await session.execute(overlapping_events_query)
-    if result.first():
+    room_in_use = await check_overlapping(event_data.room_id, event_dict['date_start'], event_dict['date_end'], session)
+    if not room_in_use:
         raise HTTPException(
-            status_code=HTTPStatus.CONFLICT,
+            status_code=status.HTTP_409_CONFLICT,
             detail=ROOM_IS_ALREADY
         )
 
-    query = insert(event_db).values(**event_dict)
-    await session.execute(query)
+    query = insert(event_db).values(**event_dict).returning(literal_column('*'))
+    res = await session.execute(query)
+    res = res.first()
+
+    repeat_res = RepeatEventUpdate(**res._mapping)
+    
+    if repeat_res.status == app_status.approve.value:
+        await create_events_before(repeat_res, get_max_date(), session)
+
     await session.commit()
 
-    return event_data
+    return EventRead(**res._mapping)
 
 
 @router.get(
@@ -262,6 +250,7 @@ async def get_events(
 )
 async def delete_event(
     id: int,
+    for_group: bool = False,
     user: UserToken = Depends(get_current_user),
     session: AsyncSession = Depends(get_async_session)
 ):
@@ -284,7 +273,12 @@ async def delete_event(
             detail=PERMISSION_IS_NOT_EXIST
         )
 
-    delete_query = delete(event_db).where(event_db.c.id == id)
+    event_group = RepeatEventUpdate(**event._mapping)
+
+    if for_group:
+        delete_query = delete(event_db).where(event_db.c.event_base_id == event_group.event_base_id)
+    else:
+        delete_query = delete(event_db).where(event_db.c.id == id)
 
     await session.execute(delete_query)
     await session.commit()
@@ -298,6 +292,7 @@ async def delete_event(
 )
 async def edit_event(
     event_data: EventEdit,
+    for_group: bool = False,
     user: UserToken = Depends(get_current_user),
     session: AsyncSession = Depends(get_async_session)
 ):
@@ -375,39 +370,16 @@ async def edit_event(
         )
 
     if event_data.date_start is not None and event_data.date_end is not None:
-        overlapping_events_query = select(event_db).where(
-            and_(
-                event_db.c.id != event_data.id,
-                event_db.c.room_id == event_data.room_id,
-                event_db.c.status == app_status.approve.value,
-                func.date(event_db.c.date_start) == func.date(
-                    event_data.date_start),
-                or_(
-                    and_(
-                        event_db.c.date_start <= event_data.date_start,
-                        event_db.c.date_end > event_data.date_start
-                    ),
-                    and_(
-                        event_db.c.date_start < event_data.date_end,
-                        event_db.c.date_end >= event_data.date_end
-                    ),
-                    and_(
-                        event_db.c.date_start >= event_data.date_start,
-                        event_db.c.date_end <= event_data.date_end
-                    )
-                )
-            )
-        )
-
-        result = await session.execute(overlapping_events_query)
-        if result.first():
+        room_in_use = await check_overlapping(event_data.room_id, event_data.date_start, event_data.date_end, session)
+        if not room_in_use:
             raise HTTPException(
-                status_code=HTTPStatus.CONFLICT,
+                status_code=status.HTTP_409_CONFLICT,
                 detail=ROOM_IS_ALREADY
             )
     
     query = update(event_db).where(event_db.c.id == event_data.id).values(
         **event_data.model_dump(exclude_none=True))
+    
     await session.execute(query)
     await session.commit()
 
