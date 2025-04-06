@@ -289,7 +289,6 @@ async def delete_event(
 
     return "OK"
 
-# repeat: str | None = None
 
 @router.put(
     "/",
