@@ -51,7 +51,8 @@ async def get_repeat_events(session: AsyncSession) -> list[RepeatEventUpdate]:
 		)
 		.where(
 			event_db.c.repeat.in_(repeatability.keys()),
-			event_db.c.status == Status.approve.value
+			event_db.c.status == Status.approve.value,
+			event_db.c.date_start >= datetime.now().replace(tzinfo=None)
 		)
 	)
 

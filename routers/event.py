@@ -381,7 +381,7 @@ async def edit_event(
                 detail=ROOM_IS_ALREADY
             )
     
-    if for_group and (event_data.room_id is not None or event_data.date_start is not None or event_data.date_end is not None):
+    if for_group and (event_data.room_id is not None or event_data.date_start is not None or event_data.date_end is not None or event_data.repeat is not None):
         query = select(event_db).where(
             event_db.c.event_base_id == event.event_base_id,
             event_db.c.date_start >= datetime.now().replace(tzinfo=None),
@@ -400,8 +400,10 @@ async def edit_event(
 
         repeat_res = repeat_res.model_copy(update=event_data.model_dump(exclude_none=True))
 
-        if repeat_res.status == app_status.approve.value:
-            await create_events_before(repeat_res, get_max_date(), session)
+        if repeat_res.repeat not in Repeatability._value2member_map_:
+            repeat_res.repeat = Repeatability.NO.value
+
+        await create_event(event_data=EventCreate(**repeat_res.model_dump()), user=user, session=session)       
     
     elif for_group:
         query = update(event_db).where(event_db.c.id == event_data.id).values(**event_data.model_dump(exclude_none=True))

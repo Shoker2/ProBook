@@ -25,7 +25,7 @@ class EventCreate(BaseModel):
 	title: str
 	description: str
 	img: str | None = None
-	repeat: str
+	repeat: str | None = None
 	date_start: datetime
 	date_end: datetime
 	needable_items: List[int] | None = []
