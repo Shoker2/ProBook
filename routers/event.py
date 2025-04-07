@@ -7,7 +7,7 @@ from fastapi import (
 )
 from sqlalchemy.dialects.postgresql import ARRAY, UUID as pg_UUID
 from sqlalchemy.ext.asyncio import AsyncSession
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from schemas.token import BaseTokenResponse
 from database import get_async_session
 from permissions.utils import checking_for_permission
@@ -49,6 +49,8 @@ from auth import (
 from details import *
 from shared.utils.events import get_max_date, create_events_before, check_overlapping, repeatability
 from shared import time_manager
+from config import config
+
 router = APIRouter(
     prefix="/events",
     tags=["events"]
@@ -64,11 +66,25 @@ async def create_event(
     user: UserToken = Depends(get_current_user),
     session: AsyncSession = Depends(get_async_session)
 ):
+    
+    event_data.date_start = event_data.date_start.replace(tzinfo=None)
+    event_data.date_end = event_data.date_end.replace(tzinfo=None)
 
     if not time_manager(event_data.date_start, event_data.date_end):
         raise HTTPException(
             status_code=HTTPStatus.BAD_REQUEST,
             detail=TIME_VALIDATION_ERROR
+        )
+    
+    now_date = datetime.now().replace(hour=0, minute=0, microsecond=0, tzinfo=None)
+
+    min_available_date = now_date + timedelta(days=config.get("Miscellaneous", "min_available_day_booking"))
+    max_available_date = now_date + timedelta(days=config.get("Miscellaneous", "max_available_day_booking"))
+
+    if min_available_date > event_data.date_start or event_data.date_end > max_available_date:
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail=DATETIME_NOT_AVAILABLE
         )
 
     room_query = select(room_db).where(room_db.c.id == event_data.room_id)
@@ -105,12 +121,10 @@ async def create_event(
     event_dict = event_data.model_dump()
     event_dict['user_uuid'] = user.uuid
     if event_dict['date_start'].tzinfo is not None:
-        event_dict['date_start'] = event_dict['date_start'].replace(
-            tzinfo=None)
+        event_dict['date_start'] = event_dict['date_start']
 
     if event_dict['date_end'].tzinfo is not None:
-        event_dict['date_end'] = event_dict['date_end'].replace(
-            tzinfo=None)
+        event_dict['date_end'] = event_dict['date_end']
 
     room_in_use = await check_overlapping(event_data.room_id, event_dict['date_start'], event_dict['date_end'], session)
     if not room_in_use:
@@ -380,7 +394,7 @@ async def edit_event(
                 detail=ROOM_IS_ALREADY
             )
     
-    if for_group and (event_data.room_id is not None or event_data.date_start is not None or event_data.date_end is not None or event_data.repeat is not None):
+    if for_group and (event_data.room_id is not None or event_data.date_start is not None or event_data.date_end is not None or event_data.repeat is not None or event_data.status == app_status.approve.value):
         query = select(event_db).where(
             event_db.c.event_base_id == event.event_base_id,
             event_db.c.date_start >= datetime.now().replace(tzinfo=None),
@@ -402,20 +416,25 @@ async def edit_event(
         if repeat_res.repeat not in Repeatability._value2member_map_:
             repeat_res.repeat = Repeatability.NO.value
 
-        await create_event(event_data=EventCreate(**repeat_res.model_dump()), user=user, session=session)       
+        repeat_res = await create_event(event_data=EventCreate(**repeat_res.model_dump()), user=user, session=session) 
+
+        query = select(event_db).where(
+            event_db.c.id == repeat_res.id
+        )
+
     
     elif for_group:
-        query = update(event_db).where(event_db.c.id == event_data.id).values(**event_data.model_dump(exclude_none=True))
-        await session.execute(query)
+        query = update(event_db).where(event_db.c.event_base_id == event.event_base_id).values(**event_data.model_dump(exclude_none=True, exclude={'id'})).returning(literal_column('*'))
 
     else:
-        query = update(event_db).where(event_db.c.event_base_id == event.event_base_id).values(**event_data.model_dump(exclude_none=True))
-        await session.execute(query)
-
+        query = update(event_db).where(event_db.c.id == event_data.id).values(**event_data.model_dump(exclude_none=True)).returning(literal_column('*'))
+    
+    res = await session.execute(query)
+    res = res.first()
 
     await session.commit()
 
-    return event_data
+    return EventEdit(**res._mapping)
 
 
 @router.post("/participate/{id}", response_model=BaseTokenResponse[int])

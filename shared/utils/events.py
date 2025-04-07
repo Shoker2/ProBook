@@ -15,8 +15,11 @@ from fastapi import HTTPException, status
 from schemas.event import RepeatEventUpdate, Status, Repeatability
 from models_ import event as event_db
 from details import ROOM_IS_ALREADY
+from config import config
 
-TIMEDELTA = timedelta(days=40)
+
+TIMEDELTA = timedelta(days=max(366, config.get("Miscellaneous", "max_available_day_booking")) + 32)
+
 
 repeatability = {
 	Repeatability.daily.value: relativedelta(days=1),

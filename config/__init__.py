@@ -20,6 +20,8 @@ config = Configure(default_config={
     },
     "Miscellaneous": {
         "Secret": "",
+        "min_available_day_booking": 2,
+        "max_available_day_booking": 60,
     },
     "Microsoft": {
         "client_id": "",

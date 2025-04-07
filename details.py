@@ -28,3 +28,4 @@ TIME_VALIDATION_ERROR = "Date start and end must be on the same day and end time
 START_TIME_GREATER_THAN_END = "The start date cannot be later than the end date"
 INVALID_UUID = "invalid UUID"
 WORKER_ALREADY_EXISTS = "Worker already exists"
+DATETIME_NOT_AVAILABLE = "datetime not available"

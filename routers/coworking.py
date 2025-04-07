@@ -11,7 +11,7 @@ from schemas.coworking import (
     ReadItem,
     Status as app_status
 )
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from typing import List
 from auth import get_current_user
 from database import get_async_session
@@ -43,6 +43,7 @@ from models_ import (
     room as room_db,
     item as item_db,
 )
+from config import config
 
 router = APIRouter(
     prefix="/coworkings",
@@ -59,11 +60,25 @@ async def create_coworking(
     user: UserToken = Depends(get_current_user),
     session: AsyncSession = Depends(get_async_session)
 ):
+    
+    coworking_data.date_start = coworking_data.date_start.replace(tzinfo=None)
+    coworking_data.date_end = coworking_data.date_end.replace(tzinfo=None)
 
     if not time_manager(coworking_data.date_start, coworking_data.date_end):
         raise HTTPException(
             status_code=HTTPStatus.BAD_REQUEST,
             detail=TIME_VALIDATION_ERROR
+        )
+    
+    now_date = datetime.now().replace(hour=0, minute=0, microsecond=0, tzinfo=None)
+
+    min_available_date = now_date + timedelta(days=config.get("Miscellaneous", "min_available_day_booking"))
+    max_available_date = now_date + timedelta(days=config.get("Miscellaneous", "max_available_day_booking"))
+
+    if min_available_date > coworking_data.date_start or coworking_data.date_end > max_available_date:
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail=DATETIME_NOT_AVAILABLE
         )
 
     if coworking_data.needable_items:
