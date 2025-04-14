@@ -27,13 +27,16 @@ router_users = APIRouter(
 )
 
 @router_microsoft.get("/get_authorization_url", summary="Get Microsoft Authorization URL", response_model=GetAuthorizationUrl)
-async def get_authorization_url():
+async def get_authorization_url(redirect_uri: str | None = None):
     """
     Generate a Microsoft authorization URL for user login.
     """
 
+    if redirect_uri is None:
+        redirect_uri = REDIRECT_URI
+
     authorization_url = await microsoft_oauth_client.get_authorization_url(
-        redirect_uri=REDIRECT_URI,
+        redirect_uri=redirect_uri,
         scope=["User.Read", "profile", "openid", "email", "offline_access"] # "User.Read.All"
     )
 
