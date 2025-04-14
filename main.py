@@ -1,5 +1,6 @@
 from fastapi import FastAPI, Depends, Request, HTTPException
 from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
 import json
 import logging
 import asyncio
@@ -30,6 +31,21 @@ from services.tmp_image_remover import pubsub
 
 app = FastAPI(
     title="TP2 API",
+)
+
+origins = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://git-ts2.ru:8000",
+    "*",
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins, 
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 routers = [
