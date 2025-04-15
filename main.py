@@ -33,20 +33,6 @@ app = FastAPI(
     title="TP2 API",
 )
 
-origins = [
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-    "http://git-ts2.ru:8000",
-    "*",
-]
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=origins, 
-    allow_credentials=False,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
 routers = [
     auth_router,
@@ -65,6 +51,12 @@ routers = [
 for router in routers:
     app.include_router(router)
 
+@app.middleware("http")
+async def log_cors(request: Request, call_next):
+    print("Origin:", request.headers.get("origin"))
+    print("Headers:", request.headers)
+    response = await call_next(request)
+    return response
 
 async def add_new_token_to_response(request: Request, call_next):
     response = await call_next(request)
@@ -152,6 +144,22 @@ async def shutdown_event():
         await pubsub.close()
     
     await redis_db.close()
+    
+origins = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://git-ts2.ru:8000",
+    "http://localhost:8000"
+]
+
+app.add_middleware(
+     CORSMiddleware,
+     allow_origins=origins,
+     allow_credentials=True, 
+     allow_methods=["*"],
+     allow_headers=["Authorization", "Content-Type"],  
+)
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    
