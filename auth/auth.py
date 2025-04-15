@@ -90,6 +90,10 @@ async def get_token_by_microsoft_access_token(token: dict, session: AsyncSession
     if (await get_user_by_uuid(user_uuid, session)) is None:
         await create_user(uuid_str=user_uuid, session=session)
 
+        prefix = 'info:'
+        await redis_db.set_dict(f'{prefix}{user_uuid}', user_info_response.json())
+        await redis_db.set_dict(f'{prefix}{user_uuid}_temp', 1, ex=3600 * 24)
+
     return GetToken(
         token=token
     )

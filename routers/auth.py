@@ -10,6 +10,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from httpx_oauth.oauth2 import RefreshTokenError, GetAccessTokenError
 from auth.auth import get_user_by_uuid as get_user_by_uuid_db
+from models_ import user as user_db
 import io
 
 router = APIRouter(
@@ -212,6 +213,55 @@ async def get_user_by_uuid(uuid: str, user: UserToken = Depends(get_current_user
             microsoft=microsoft_user_info.result,
             image_path=microsoft_user_photo.result
         ),
+    )
+
+
+@router_users.get('/', response_model=BaseTokenResponse[list[UserReadMicrosoft]])
+async def get_users(
+        user: UserToken = Depends(get_current_user),
+        session: AsyncSession = Depends(get_async_session),
+
+        is_superuser: bool | None = None,
+        group_id: int | None = None,
+        limit: int = 10,
+        page: int = 1,
+    ):
+
+    limit = min(max(1, limit), 60)
+    page = max(1, page) - 1
+
+    stmt = select(user_db.c.uuid, user_db.c.is_superuser, user_db.c.group_id).limit(limit).offset(page * limit)
+
+    if is_superuser is not None:
+        stmt = stmt.where(user_db.c.is_superuser == is_superuser)
+    
+    if group_id is not None:
+        stmt = stmt.where(user_db.c.group_id == group_id)
+
+    result = await session.execute(stmt)
+    data = result.fetchall()
+
+    users = []
+
+    for user_ in data:
+        group = await get_group_by_id(id=user_.group_id, session=session)
+        if group is None:
+            group = await get_default_group(session=session)
+
+        users.append(
+            UserReadMicrosoft(
+                uuid=user_.uuid,
+                is_superuser=user_.is_superuser,
+                group=group,
+
+                microsoft= await get_microsoft_user_info(user_.uuid),
+                image_path= await get_user_image_path(user_.uuid)
+            )
+        )
+    
+    return BaseTokenResponse(
+        new_token=user.new_token,
+        result=users,
     )
 
 router.include_router(router_microsoft)
