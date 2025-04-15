@@ -1,5 +1,6 @@
 from fastapi import FastAPI, Depends, Request, HTTPException
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 import json
 import logging
@@ -33,6 +34,7 @@ app = FastAPI(
     title="TP2 API",
 )
 
+app.mount("/static", StaticFiles(directory=STATIC_IMAGES_DIR), name="static")
 
 routers = [
     auth_router,
@@ -50,13 +52,6 @@ routers = [
 
 for router in routers:
     app.include_router(router)
-
-@app.middleware("http")
-async def log_cors(request: Request, call_next):
-    print("Origin:", request.headers.get("origin"))
-    print("Headers:", request.headers)
-    response = await call_next(request)
-    return response
 
 async def add_new_token_to_response(request: Request, call_next):
     response = await call_next(request)
