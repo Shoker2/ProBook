@@ -16,14 +16,6 @@ from schemas import UserToken, UserCreate, UserRead
 from redis.asyncio.client import Redis
 from models_ import user, group
 
-redis_db = Redis(
-    host=config["Redis"]["host"],
-    port=config.get("Redis", "port"),
-    decode_responses=True,
-    retry_on_timeout=True,
-    socket_keepalive=True
-)
-
 DATABASE_URL =  f"postgresql+asyncpg://{config['Database']['DB_USER']}:{config['Database']['DB_PASS']}@{config['Database']['DB_HOST']}:{config['Database']['DB_PORT']}/{config['Database']['DB_NAME']}"
 
 engine = create_async_engine(DATABASE_URL)

@@ -23,8 +23,8 @@ async def tmp_image_remover_task(message: dict):
 async def tmp_image_remover(key: str):
     key = key + '_value'
     
-    path = await redis_db.get(key)
-    await redis_db.delete(key)
+    path = await redis_db.get_abs(key)
+    await redis_db.delete_abs(key)
 
     if path is None:
         return
@@ -67,5 +67,5 @@ async def remove_trash(prefix: str, sufix: str):
     for key in matching_keys:
         key = key[:-len(sufix):]
         
-        if await redis_db.get(key) is None:
+        if await redis_db.get_abs(key) is None:
             await tmp_image_remover(key)

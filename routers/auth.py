@@ -4,7 +4,6 @@ from schemas import *
 from database import redis_db, get_async_session
 from auth import *
 from .uploader import upload as upload_file
-from database import redis_db
 
 from fastapi import APIRouter, HTTPException, Request, Depends, Body, status, UploadFile
 from fastapi.responses import StreamingResponse
@@ -97,7 +96,6 @@ async def get_microsoft_user_by_uuid(uuid: str, user: UserToken = Depends(get_cu
     """
     Fetch the uuid user's information from Microsoft Graph API.
     """
-
     async with microsoft_oauth_client.get_httpx_client() as client:
         user_info_response = await client.get(
             f"https://graph.microsoft.com/v1.0/users/{uuid}",
@@ -128,7 +126,7 @@ async def get_microsoft_user_photo(uuid: str, user: UserToken = Depends(get_curr
     """
     Fetch the user's photo from Microsoft Graph API.
     """
-    prefix = 'probook:user_image:'
+    prefix = 'user_image:'
     image_path = await redis_db.get(f"{prefix}{uuid}")
     
     if image_path is None:
