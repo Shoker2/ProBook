@@ -57,14 +57,14 @@ class CustomRedisClient(Redis):
 
     async def set_dict(self, key: KeyT, data: dict, ex: Union[ExpiryT, None] = None, px: Union[ExpiryT, None] = None, nx: bool = False, xx: bool = False, keepttl: bool = False, get: bool = False, exat: Union[AbsExpiryT, None] = None, pxat: Union[AbsExpiryT, None] = None):
         await self.set(
-            name=key,
+            key=key,
             value=json.dumps(data),
             ex=ex, px=px, nx=nx, xx=xx, keepttl=keepttl, get=get, exat=exat, pxat=pxat
         )
 
     async def get_dict(self, key: KeyT):
         json_data = await self.get(key)
-        return json.loads(json_data) if json_data else None
+        return dict(json.loads(json_data)) if json_data else None
 
 
 def create_connection() -> CustomRedisClient:
