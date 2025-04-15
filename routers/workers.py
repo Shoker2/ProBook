@@ -65,7 +65,7 @@ async def create_worker(
         result=result
     )
 
-@router.get('/', response_model=list[UserRead])
+@router.get('/', response_model=list[UserReadMicrosoft])
 async def get_workers(
         session: AsyncSession = Depends(get_async_session)
     ):
@@ -74,7 +74,7 @@ async def get_workers(
     data = await session.execute(select_statement)
     rows = data.fetchall()
 
-    users: list[UserRead] = []
+    users: list[UserReadMicrosoft] = []
     
     for user_ in rows:
         user_ = user_._mapping
@@ -84,10 +84,12 @@ async def get_workers(
             group = await get_default_group(session=session)
 
         users.append(
-            UserRead(
+            UserReadMicrosoft(
                 uuid=user_['uuid'],
                 is_superuser=user_['is_superuser'],
-                group=group
+                group=group,
+                microsoft= await get_microsoft_user_info(user_['uuid']),
+                image_path= await get_user_image_path(user_['uuid'])
             )
         )
 

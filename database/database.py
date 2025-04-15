@@ -9,11 +9,6 @@ from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy import update, select, insert, delete
 import uuid
 
-from fastapi import HTTPException, status
-import jwt
-from jwt.exceptions import InvalidTokenError
-from schemas import UserToken, UserCreate, UserRead
-from redis.asyncio.client import Redis
 from models_ import user, group
 
 DATABASE_URL =  f"postgresql+asyncpg://{config['Database']['DB_USER']}:{config['Database']['DB_PASS']}@{config['Database']['DB_HOST']}:{config['Database']['DB_PORT']}/{config['Database']['DB_NAME']}"

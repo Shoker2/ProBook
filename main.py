@@ -83,13 +83,9 @@ async def add_new_token_middleware(request: Request, call_next):
     return await add_new_token_to_response(request, call_next)
 
 
-@app.get('/', response_model=BaseTokenResponse[UserRead])
+@app.get('/')
 async def root(user: UserToken = Depends(get_current_user)):
-    return BaseTokenResponse(
-        new_token=user.new_token,
-        result=user
-    )
-# TODO: Прописать все возвраты для свагера
+    return {'data': 'Hello world'}
 
 
 @app.on_event("startup")

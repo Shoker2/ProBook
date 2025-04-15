@@ -65,23 +65,23 @@ async def get_token_callback(request: Request, session: AsyncSession = Depends(g
 
     return await get_token_by_microsoft_access_token(token, session)
 
-@router_microsoft.get("/users/me",
-    summary="Get Microsoft User Info",
-    response_model=BaseTokenResponse[dict]
-)
+
 async def get_microsoft_me(user: UserToken = Depends(get_current_user)):
     """
     Fetch the current user's information from Microsoft Graph API.
     """
 
     prefix = 'info:'
-    user_redis = await redis_db.get_dict(f"{prefix}{user.uuid}")
+    user_redis_temp = await redis_db.get(f"{prefix}{user.uuid}_temp")
 
-    if user_redis is not None:
-        return BaseTokenResponse(
-            new_token=user.new_token,
-            result=user_redis
-        )
+    if user_redis_temp is not None:
+        user_redis = await redis_db.get_dict(f"{prefix}{user.uuid}")
+
+        if user_redis is not None:
+            return BaseTokenResponse(
+                new_token=user.new_token,
+                result=user_redis
+            )
 
     async with microsoft_oauth_client.get_httpx_client() as client:
         user_info_response = await client.get(
@@ -92,25 +92,32 @@ async def get_microsoft_me(user: UserToken = Depends(get_current_user)):
     if user_info_response.status_code != 200:
         raise HTTPException(status_code=user_info_response.status_code, detail=FAILED_FETCH_USER_INFO)
 
-    await redis_db.set_dict(f'{prefix}{user.uuid}', user_info_response.json(), ex=3600 * 24)
+    await redis_db.set_dict(f'{prefix}{user.uuid}', user_info_response.json())
+    await redis_db.set_dict(f'{prefix}{user.uuid}_temp', 1, ex=3600 * 24)
 
     return BaseTokenResponse(
         new_token=user.new_token,
         result=user_info_response.json()
     )
 
-@router_microsoft.get("/users/{uuid}",
-    summary="Get Microsoft User Info by UUID",
-    response_model=BaseTokenResponse[dict]
-)
+
 async def get_microsoft_user_by_uuid(uuid: str, user: UserToken = Depends(get_current_user)):
     """
     Fetch the uuid user's information from Microsoft Graph API.
     """
     prefix = 'info:'
-    user_redis = await redis_db.get_dict(f"{prefix}{uuid}")
+    user_redis_temp = await redis_db.get(f"{prefix}{uuid}_temp")
 
-    if user_redis is not None:
+    if user_redis_temp is not None:
+        user_redis = await redis_db.get_dict(f"{prefix}{user.uuid}")
+
+        if user_redis is not None:
+            return BaseTokenResponse(
+                new_token=user.new_token,
+                result=user_redis
+            )
+
+    if user_redis_temp is not None and user_redis is not None:
         return BaseTokenResponse(
             new_token=user.new_token,
             result=user_redis
@@ -125,7 +132,8 @@ async def get_microsoft_user_by_uuid(uuid: str, user: UserToken = Depends(get_cu
     if user_info_response.status_code != 200:
         raise HTTPException(status_code=user_info_response.status_code, detail=FAILED_FETCH_USER_INFO)
 
-    await redis_db.set_dict(f'{prefix}{uuid}', user_info_response.json(), ex=3600 * 24)
+    await redis_db.set_dict(f'{prefix}{uuid}', user_info_response.json())
+    await redis_db.set(f'{prefix}{uuid}_temp', 1, ex=3600 * 24)
 
     return BaseTokenResponse(
         new_token=user.new_token,
@@ -133,19 +141,11 @@ async def get_microsoft_user_by_uuid(uuid: str, user: UserToken = Depends(get_cu
     )
 
 
-@router_microsoft.get("/users/me/photo",
-    summary="Get Microsoft My Photo",
-    response_model=BaseTokenResponse[str]
-)
 async def get_microsoft_me_photo(user: UserToken = Depends(get_current_user)):
     return await get_microsoft_user_photo(str(user.uuid), user)
 
 
 
-@router_microsoft.get("/users/{uuid}/photo",
-    summary="Get Microsoft User Photo",
-    response_model=BaseTokenResponse[str]
-)
 async def get_microsoft_user_photo(uuid: str, user: UserToken = Depends(get_current_user)):
     """
     Fetch the user's photo from Microsoft Graph API.
@@ -183,21 +183,35 @@ async def get_microsoft_user_photo(uuid: str, user: UserToken = Depends(get_curr
     )
 
 
-@router_users.get('/me', response_model=BaseTokenResponse[UserRead])
+@router_users.get('/me', response_model=BaseTokenResponse[UserReadMicrosoft])
 async def get_me_user(user: UserToken = Depends(get_current_user)):
+    microsoft_me_info = await get_microsoft_me(user)
+    microsoft_me_photo = await get_microsoft_me_photo(user)
+    
     return BaseTokenResponse(
         new_token=user.new_token,
-        result=user
+        result=UserReadMicrosoft(
+            **user.model_dump(),
+            microsoft=microsoft_me_info.result,
+            image_path=microsoft_me_photo.result
+        ),
     )
 
-@router_users.get('/{uuid}', response_model=BaseTokenResponse[UserRead])
+@router_users.get('/{uuid}', response_model=BaseTokenResponse[UserReadMicrosoft])
 async def get_user_by_uuid(uuid: str, user: UserToken = Depends(get_current_user), session: AsyncSession = Depends(get_async_session)):
 
     find_user = await get_user_by_uuid_db(uuid, session)
 
+    microsoft_user_info = await get_microsoft_user_by_uuid(uuid, user)
+    microsoft_user_photo = await get_microsoft_user_photo(uuid, user)
+    
     return BaseTokenResponse(
         new_token=user.new_token,
-        result=find_user
+        result=UserReadMicrosoft(
+            **find_user.model_dump(),
+            microsoft=microsoft_user_info.result,
+            image_path=microsoft_user_photo.result
+        ),
     )
 
 router.include_router(router_microsoft)

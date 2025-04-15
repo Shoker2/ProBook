@@ -24,6 +24,10 @@ class UserCreate(BaseModel):
 class UserRead(UserCreate):
     group: GroupRead | None
 
+class UserReadMicrosoft(UserRead):
+    microsoft: dict | None = None
+    image_path: str | None = None
+
 class UserToken(UserRead):
     microsoft_access_token: str
     microsoft_refresh_token: str

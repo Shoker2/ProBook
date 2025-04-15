@@ -142,6 +142,15 @@ async def get_default_group(session: AsyncSession) -> GroupRead | None:
         is_default=data.is_default
     )
 
+
+async def get_microsoft_user_info(uuid: str) -> dict | None:
+    return await redis_db.get_dict(f"info:{uuid}")
+
+
+async def get_user_image_path(uuid: str) -> str | None:
+    return await redis_db.get(f"user_image:{uuid}")
+
+
 async def get_group_by_id(id: int, session: AsyncSession) -> GroupRead | None:
     stmt = select(group_db.c.name, group_db.c.permissions, group_db.c.is_default).where(group_db.c.id == id)
     data = await session.execute(stmt)
