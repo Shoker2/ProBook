@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import json
 import logging
 import asyncio
+import os
 import uvicorn
 
 from routers.auth import router as auth_router
@@ -34,6 +35,7 @@ app = FastAPI(
     title="TP2 API",
 )
 
+os.makedirs(STATIC_IMAGES_DIR, exist_ok=True)
 app.mount("/static", StaticFiles(directory=STATIC_IMAGES_DIR), name="static")
 
 routers = [
