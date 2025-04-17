@@ -4,7 +4,6 @@ from schemas import *
 from auth import *
 from models_ import worker as worker_db, user as user_db
 from permissions import get_depend_user_with_perms, Permissions
-from .auth import get_microsoft_user_by_uuid, get_microsoft_user_photo
 
 from fastapi import APIRouter, HTTPException, Request, Depends, Body, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -86,15 +85,9 @@ async def get_workers(
         if group is None:
             group = await get_default_group(session=session)
 
-        if current_user is not None:
-            microsoft_info = await get_microsoft_user_by_uuid(user_['uuid'], current_user)
-            microsoft_info = microsoft_info.result
-
-            microsoft_image = await get_microsoft_user_photo(user_['uuid'], current_user)
-            microsoft_image = microsoft_image.result
-        else:
-            microsoft_info = await get_microsoft_user_info(user_['uuid'])
-            microsoft_image = await get_user_image_path(user_['uuid'])
+    
+        microsoft_info = await get_microsoft_user_info(user_['uuid'])
+        microsoft_image = await get_user_image_path(user_['uuid'])
 
         users.append(
             UserReadMicrosoft(

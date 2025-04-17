@@ -9,7 +9,7 @@ from fastapi import APIRouter, HTTPException, Request, Depends, Body, status, Up
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from httpx_oauth.oauth2 import RefreshTokenError, GetAccessTokenError
-from auth.auth import get_user_by_uuid as get_user_by_uuid_db
+from auth.auth import get_user_by_uuid as get_user_by_uuid_db, get_user_image_path, get_microsoft_user_info
 from models_ import user as user_db
 import io
 
@@ -96,53 +96,14 @@ async def get_microsoft_me(user: UserToken):
     return user_info_response.json()
 
 
-async def get_microsoft_user_by_uuid(uuid: str, user: UserToken):
-    """
-    Fetch the uuid user's information from Microsoft Graph API.
-    """
-    prefix = 'info:'
-    user_redis_temp = await redis_db.get(f"{prefix}{uuid}_temp")
-
-    if user_redis_temp is not None:
-        user_redis = await redis_db.get_dict(f"{prefix}{user.uuid}")
-
-        if user_redis is not None:
-            return user_redis
-
-    if user_redis_temp is not None and user_redis is not None:
-        return user_redis
-
-    async with microsoft_oauth_client.get_httpx_client() as client:
-        user_info_response = await client.get(
-            f"https://graph.microsoft.com/v1.0/users/{uuid}",
-            headers={"Authorization": f"Bearer {user.microsoft_access_token}"}
-        )
-
-    if user_info_response.status_code != 200:
-        raise HTTPException(status_code=user_info_response.status_code, detail=FAILED_FETCH_USER_INFO)
-
-    await redis_db.set_dict(f'{prefix}{uuid}', user_info_response.json())
-    await redis_db.set(f'{prefix}{uuid}_temp', 1, ex=3600 * 24)
-
-    return user_info_response.json()
-
-
 async def get_microsoft_me_photo(user: UserToken):
-    return await get_microsoft_user_photo(str(user.uuid), user)
-
-
-
-async def get_microsoft_user_photo(uuid: str, user: UserToken):
-    """
-    Fetch the user's photo from Microsoft Graph API.
-    """
     prefix = 'user_image:'
-    image_path = await redis_db.get(f"{prefix}{uuid}")
+    image_path = await redis_db.get(f"{prefix}{user.uuid}")
     
     if image_path is None:
         async with microsoft_oauth_client.get_httpx_client() as client:
             user_photo_response = await client.get(
-                f"https://graph.microsoft.com/v1.0/users/{uuid}/photo/$value",
+                f"https://graph.microsoft.com/v1.0/me/photo/$value",
                 headers={"Authorization": f"Bearer {user.microsoft_access_token}"}
             )
 
@@ -167,6 +128,7 @@ async def get_microsoft_user_photo(uuid: str, user: UserToken):
     return image_path if image_path != "" else None
 
 
+
 @router_users.get('/me', response_model=BaseTokenResponse[UserReadMicrosoft])
 async def get_me_user(user: UserToken = Depends(get_current_user)):
     microsoft_me_info = await get_microsoft_me(user)
@@ -186,8 +148,8 @@ async def get_user_by_uuid(uuid: str, user: UserToken = Depends(get_current_user
 
     find_user = await get_user_by_uuid_db(uuid, session)
 
-    microsoft_user_info = await get_microsoft_user_by_uuid(uuid, user)
-    microsoft_user_photo = await get_microsoft_user_photo(uuid, user)
+    microsoft_user_info = await get_microsoft_user_info(uuid)
+    microsoft_user_photo = await get_user_image_path(uuid)
     
     return BaseTokenResponse(
         new_token=user.new_token,
