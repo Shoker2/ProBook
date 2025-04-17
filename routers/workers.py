@@ -4,6 +4,7 @@ from schemas import *
 from auth import *
 from models_ import worker as worker_db, user as user_db
 from permissions import get_depend_user_with_perms, Permissions
+from .auth import get_microsoft_user_by_uuid, get_microsoft_user_photo
 
 from fastapi import APIRouter, HTTPException, Request, Depends, Body, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,6 +13,7 @@ from httpx_oauth.oauth2 import RefreshTokenError, GetAccessTokenError
 from sqlalchemy import update, select, insert, delete
 from functools import partial
 from action_history import add_action_to_history, HistoryActions
+from schemas.user import UserToken
 
 router = APIRouter(
     prefix="/workers",
@@ -67,7 +69,8 @@ async def create_worker(
 
 @router.get('/', response_model=list[UserReadMicrosoft])
 async def get_workers(
-        session: AsyncSession = Depends(get_async_session)
+        session: AsyncSession = Depends(get_async_session),
+        current_user: UserToken | None = Depends(get_current_user_optional)
     ):
 
     select_statement = select(user_db).join(worker_db, worker_db.c.user_uuid == user_db.c.uuid)
@@ -83,13 +86,23 @@ async def get_workers(
         if group is None:
             group = await get_default_group(session=session)
 
+        if current_user is not None:
+            microsoft_info = await get_microsoft_user_by_uuid(user_['uuid'], current_user)
+            microsoft_info = microsoft_info.result
+
+            microsoft_image = await get_microsoft_user_photo(user_['uuid'], current_user)
+            microsoft_image = microsoft_image.result
+        else:
+            microsoft_info = await get_microsoft_user_info(user_['uuid'])
+            microsoft_image = await get_user_image_path(user_['uuid'])
+
         users.append(
             UserReadMicrosoft(
                 uuid=user_['uuid'],
                 is_superuser=user_['is_superuser'],
                 group=group,
-                microsoft= await get_microsoft_user_info(user_['uuid']),
-                image_path= await get_user_image_path(user_['uuid'])
+                microsoft= microsoft_info,
+                image_path= microsoft_image
             )
         )
 
