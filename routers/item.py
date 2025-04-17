@@ -144,7 +144,7 @@ async def delete_item(
         result=OK
     )
 
-@router.put('/{id}', response_model=BaseTokenResponse[ItemRead])
+@router.patch('/{id}', response_model=BaseTokenResponse[ItemRead])
 async def update_item(
         item: ItemUpdate,
         user: UserToken = Depends(get_depend_user_with_perms([Permissions.items_edit.value])),

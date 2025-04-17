@@ -84,7 +84,7 @@ async def add_new_token_middleware(request: Request, call_next):
 
 
 @app.get('/')
-async def root(user: UserToken = Depends(get_current_user)):
+async def root():
     return {'data': 'Hello world'}
 
 

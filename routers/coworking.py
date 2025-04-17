@@ -308,7 +308,7 @@ async def delete_coworking(
     return "OK"
 
 
-@router.put(
+@router.patch(
     "/",
     response_model=CoworkingEdit
 )

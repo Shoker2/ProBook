@@ -304,7 +304,7 @@ async def delete_event(
     return "OK"
 
 
-@router.put(
+@router.patch(
     "/",
     response_model=EventEdit
 )

@@ -71,7 +71,7 @@ async def get_template(
     return TemplateResponse(result=schedule_items)
 
 
-@router.put("/template/{room_id}", response_model=BaseTokenResponse[ScheduleResponse])
+@router.patch("/template/{room_id}", response_model=BaseTokenResponse[ScheduleResponse])
 async def update_template(
     room_id: int,
     update_data: TemplateScheduleUpdate,

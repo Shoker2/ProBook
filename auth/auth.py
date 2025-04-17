@@ -152,7 +152,7 @@ async def get_microsoft_user_info(uuid: str) -> dict | None:
 
 
 async def get_user_image_path(uuid: str) -> str | None:
-    return await redis_db.get(f"user_image:{uuid}")
+    return await redis_db.get(f"user_image:{uuid}_value")
 
 
 async def get_group_by_id(id: int, session: AsyncSession) -> GroupRead | None:
@@ -243,3 +243,20 @@ async def get_current_user(
     request.state.__auth_user_data = user
 
     return user
+
+
+async def get_current_user_optional(
+        request: Request,
+        token: str | None = Security(api_key_header),
+        session: AsyncSession = Depends(get_async_session)
+    ) -> UserToken | None:
+
+    if token is None:
+        return None
+    
+    try:
+        return await get_current_user(request=request, token=token, session=session)
+    except (HTTPException, InvalidTokenError, ExpiredSignatureError):
+        pass
+    
+    return None

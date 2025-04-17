@@ -138,7 +138,7 @@ async def delete_room(
         result=OK
     )
 
-@router.put('/{id}', response_model=BaseTokenResponse[RoomRead])
+@router.patch('/{id}', response_model=BaseTokenResponse[RoomRead])
 async def update_room(
         room: RoomUpdate,
         user: UserToken = Depends(get_depend_user_with_perms([Permissions.rooms_edit.value])),

@@ -152,7 +152,7 @@ async def delete_group(
         result=OK
     )
 
-@router.put('/', response_model=BaseTokenResponse[GroupRead])
+@router.patch('/', response_model=BaseTokenResponse[GroupRead])
 async def update_group(
         group: GroupUpdate,
         user: UserToken = Depends(get_depend_user_with_perms([Permissions.groups_edit.value])),
