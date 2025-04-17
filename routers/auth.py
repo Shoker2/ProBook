@@ -79,10 +79,7 @@ async def get_microsoft_me(user: UserToken):
         user_redis = await redis_db.get_dict(f"{prefix}{user.uuid}")
 
         if user_redis is not None:
-            return BaseTokenResponse(
-                new_token=user.new_token,
-                result=user_redis
-            )
+            return user_redis
 
     async with microsoft_oauth_client.get_httpx_client() as client:
         user_info_response = await client.get(
@@ -110,16 +107,10 @@ async def get_microsoft_user_by_uuid(uuid: str, user: UserToken):
         user_redis = await redis_db.get_dict(f"{prefix}{user.uuid}")
 
         if user_redis is not None:
-            return BaseTokenResponse(
-                new_token=user.new_token,
-                result=user_redis
-            )
+            return user_redis
 
     if user_redis_temp is not None and user_redis is not None:
-        return BaseTokenResponse(
-            new_token=user.new_token,
-            result=user_redis
-        )
+        return user_redis
 
     async with microsoft_oauth_client.get_httpx_client() as client:
         user_info_response = await client.get(
@@ -156,7 +147,7 @@ async def get_microsoft_user_photo(uuid: str, user: UserToken):
             )
 
         if user_photo_response.status_code != 200:
-            image_path = None
+            image_path = ""
 
         else:
             file_content = user_photo_response.content
@@ -173,7 +164,7 @@ async def get_microsoft_user_photo(uuid: str, user: UserToken):
         await redis_db.set(f"{prefix}{uuid}", image_path, ex=7200)
         await redis_db.set(f"{prefix}{uuid}_value", image_path)
 
-    return image_path
+    return image_path if image_path != "" else None
 
 
 @router_users.get('/me', response_model=BaseTokenResponse[UserReadMicrosoft])

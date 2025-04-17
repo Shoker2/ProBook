@@ -152,7 +152,8 @@ async def get_microsoft_user_info(uuid: str) -> dict | None:
 
 
 async def get_user_image_path(uuid: str) -> str | None:
-    return await redis_db.get(f"user_image:{uuid}_value")
+    image_path = await redis_db.get(f"user_image:{uuid}_value")
+    return image_path if image_path != "" else None
 
 
 async def get_group_by_id(id: int, session: AsyncSession) -> GroupRead | None:
