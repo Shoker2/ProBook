@@ -50,6 +50,8 @@ from details import *
 from shared.utils.events import get_max_date, create_events_before, check_overlapping, repeatability
 from shared import time_manager
 from config import config
+from action_history import add_action_to_history, HistoryActions
+from schemas import ActionHistoryCreate, ActionHistoryDetailUpdate
 
 router = APIRouter(
     prefix="/events",
@@ -142,6 +144,17 @@ async def create_event(
     if repeat_res.status == app_status.approve.value:
         await create_events_before(repeat_res, get_max_date(), session)
 
+    await add_action_to_history(
+        ActionHistoryCreate(
+            action=HistoryActions.create.value,
+            subject_uuid=user.uuid,
+            object_table="event",
+            object_id=res.id,
+            detail=event_dict
+        ),
+        session
+    )
+    
     await session.commit()
 
     return EventRead(**res._mapping)
@@ -299,6 +312,18 @@ async def delete_event(
         delete_query = delete(event_db).where(event_db.c.id == id)
 
     await session.execute(delete_query)
+    
+    await add_action_to_history(
+        ActionHistoryCreate(
+            action=HistoryActions.delete.value,
+            subject_uuid=user.uuid,
+            object_table="event",
+            object_id=id,
+            detail=dict(event._mapping)
+        ),
+        session
+    )
+    
     await session.commit()
 
     return "OK"
@@ -432,6 +457,25 @@ async def edit_event(
     res = await session.execute(query)
     res = res.first()
 
+    # Добавляем запись в историю действий
+    detail_update = ActionHistoryDetailUpdate()
+    update_data = event_data.model_dump(exclude_none=True)
+    
+    for key, new_value in update_data.items():
+        if key != 'id':
+            detail_update.update(key, getattr(event, key), new_value)
+    
+    await add_action_to_history(
+        ActionHistoryCreate(
+            action=HistoryActions.update.value,
+            subject_uuid=user.uuid,
+            object_table="event",
+            object_id=event_data.id,
+            detail=detail_update
+        ),
+        session
+    )
+
     await session.commit()
 
     return EventEdit(**res._mapping)
@@ -471,6 +515,18 @@ async def participate_in_event(
     stmt = update(event_db).where(event_db.c.id ==
                                   id).values(participants=participants)
     await session.execute(stmt)
+    
+    await add_action_to_history(
+        ActionHistoryCreate(
+            action=HistoryActions.update.value,
+            subject_uuid=user.uuid,
+            object_table="event",
+            object_id=id,
+            detail={"action": "participate", "user_uuid": str(user.uuid)}
+        ),
+        session
+    )
+    
     await session.commit()
 
     return BaseTokenResponse(
@@ -513,6 +569,18 @@ async def unparticipate_from_event(
     stmt = update(event_db).where(event_db.c.id ==
                                   id).values(participants=participants)
     await session.execute(stmt)
+    
+    await add_action_to_history(
+        ActionHistoryCreate(
+            action=HistoryActions.update.value,
+            subject_uuid=user.uuid,
+            object_table="event",
+            object_id=id,
+            detail={"action": "unparticipate", "user_uuid": str(user.uuid)}
+        ),
+        session
+    )
+    
     await session.commit()
 
     return BaseTokenResponse(

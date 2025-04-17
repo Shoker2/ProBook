@@ -24,8 +24,11 @@ from models_ import schedule
 from schemas import ScheduleItem, ScheduleResponse, TemplateScheduleUpdate, CreateSchedule, TemplateResponse, TemplateItem
 from datetime import datetime, timedelta, date
 from shared import get_week_dates, validate_time_intervals
+from action_history import add_action_to_history, HistoryActions
+from schemas import ActionHistoryCreate, ActionHistoryDetailUpdate
 
 
+OBJECT_TABLE = "schedule"
 SCHEDULE_TEMPLATE = {
     1: datetime(1000, 1, 1),
     2: datetime(1000, 1, 2),
@@ -105,6 +108,21 @@ async def update_template(
     await session.execute(stmt)
     await session.commit()
     
+    await add_action_to_history(
+        ActionHistoryCreate(
+            action=HistoryActions.update.value,
+            subject_uuid=current_user.uuid,
+            object_table=OBJECT_TABLE,
+            object_id=room_id,
+            detail={
+                "day_number": update_data.day_number,
+                "date": date_obj.isoformat(),
+                "schedule_time": update_data.schedule_time
+            }
+        ),
+        session
+    )
+    
     response = ScheduleResponse(
         result=[
             ScheduleItem(
@@ -154,6 +172,21 @@ async def create_schedule(
     await session.execute(stmt)
     await session.commit()
 
+    await add_action_to_history(
+        ActionHistoryCreate(
+            action=HistoryActions.create.value,
+            subject_uuid=current_user.uuid,
+            object_table=OBJECT_TABLE,
+            object_id=room_id,
+            detail={
+                "date": date_obj.isoformat(),
+                "schedule_time": schedule_data.schedule_time,
+                "room_id": room_id
+            }
+        ),
+        session
+    )
+
     response = ScheduleResponse(
         result = [
             ScheduleItem(
@@ -199,6 +232,20 @@ async def delete_schedule(
     stmt = delete(schedule).where(schedule.c.date == date_obj, schedule.c.room_id == room_id)
     await session.execute(stmt)
     await session.commit()
+    
+    await add_action_to_history(
+        ActionHistoryCreate(
+            action=HistoryActions.delete.value,
+            subject_uuid=current_user.uuid,
+            object_table=OBJECT_TABLE,
+            object_id=room_id,
+            detail={
+                "date": date_obj.isoformat(),
+                "schedule_time": existing_schedule.schedule_time
+            }
+        ),
+        session
+    )
     
     response = ScheduleResponse(
         result=[
