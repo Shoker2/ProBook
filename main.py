@@ -2,6 +2,7 @@ from fastapi import FastAPI, Depends, Request, HTTPException
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
+from contextlib import asynccontextmanager
 import json
 import logging
 import asyncio
@@ -31,8 +32,60 @@ from models_ import schedule, room as room_db
 from services import subscribe_expired_keys, repeat_event_updater
 from services.tmp_image_remover import pubsub
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup code
+    app.state.expired_keys_task = asyncio.create_task(subscribe_expired_keys())
+
+    asyncio.create_task(repeat_event_updater())
+
+    async with async_session_maker() as session:
+        query = select(room_db.c.id)
+        room_id_result = await session.execute(query)
+        
+        for room_id in room_id_result.fetchall():
+            room_id = room_id[0]
+
+            for date, schedule_times in schedule_template.items():
+
+                date_obj = datetime.strptime(
+                    date, '%d.%m.%Y').date()
+
+                query = select(schedule).where(date_obj == schedule.c.date, schedule.c.room_id == room_id)
+                result = await session.execute(query)
+                schedule_row = result.first()
+                if not schedule_row:
+                    stmt = insert(schedule).values(
+                        date=date_obj,
+                        schedule_time=schedule_times,
+                        room_id=room_id
+                    )
+                    await session.execute(stmt)
+            
+            await session.commit()
+    
+    yield
+    
+    # Shutdown code
+    task = app.state.expired_keys_task
+    task.cancel()
+
+    try:
+        await task
+    except asyncio.CancelledError:
+        logging.info("Background task cancelled")
+
+    if pubsub:
+        await pubsub.unsubscribe('__keyevent@0__:expired')
+        await pubsub.close()
+    
+    await redis_db.close()
+
+
 app = FastAPI(
     title="TP2 API",
+    lifespan=lifespan
 )
 
 os.makedirs(STATIC_IMAGES_DIR, exist_ok=True)
@@ -88,55 +141,6 @@ async def add_new_token_middleware(request: Request, call_next):
 @app.get('/')
 async def root():
     return {'data': 'Hello world'}
-
-
-@app.on_event("startup")
-async def startup_event():
-    app.state.expired_keys_task = asyncio.create_task(subscribe_expired_keys())
-
-    asyncio.create_task(repeat_event_updater())
-
-    async with async_session_maker() as session:
-        query = select(room_db.c.id)
-        room_id_result = await session.execute(query)
-        
-        for room_id in room_id_result.fetchall():
-            room_id = room_id[0]
-
-            for date, schedule_times in schedule_template.items():
-
-                date_obj = datetime.strptime(
-                    date, '%d.%m.%Y').date()
-
-                query = select(schedule).where(date_obj == schedule.c.date, schedule.c.room_id == room_id)
-                result = await session.execute(query)
-                schedule_row = result.first()
-                if not schedule_row:
-                    stmt = insert(schedule).values(
-                        date=date_obj,
-                        schedule_time=schedule_times,
-                        room_id=room_id
-                    )
-                    await session.execute(stmt)
-            
-            await session.commit()
-
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    task = app.state.expired_keys_task
-    task.cancel()
-
-    try:
-        await task
-    except asyncio.CancelledError:
-        logging.info("Background task cancelled")
-
-    if pubsub:
-        await pubsub.unsubscribe('__keyevent@0__:expired')
-        await pubsub.close()
-    
-    await redis_db.close()
     
 origins = [
     "http://localhost:3000",

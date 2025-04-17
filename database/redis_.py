@@ -52,7 +52,7 @@ class CustomRedisClient(Redis):
         return await super().hgetall(key, *args, **kwargs)
 
     async def delete_abs(self, *keys: str) -> int:
-        return await super().delete(keys)
+        return await super().delete(*keys)
 
 
     async def set_dict(self, key: KeyT, data: dict, ex: Union[ExpiryT, None] = None, px: Union[ExpiryT, None] = None, nx: bool = False, xx: bool = False, keepttl: bool = False, get: bool = False, exat: Union[AbsExpiryT, None] = None, pxat: Union[AbsExpiryT, None] = None):
