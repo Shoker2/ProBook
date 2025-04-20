@@ -106,7 +106,6 @@ async def update_template(
         schedule_time=update_data.schedule_time
     )
     await session.execute(stmt)
-    await session.commit()
     
     await add_action_to_history(
         ActionHistoryCreate(
@@ -123,6 +122,8 @@ async def update_template(
         session
     )
     
+    await session.commit()
+
     response = ScheduleResponse(
         result=[
             ScheduleItem(
@@ -170,7 +171,6 @@ async def create_schedule(
         room_id=room_id
     )
     await session.execute(stmt)
-    await session.commit()
 
     await add_action_to_history(
         ActionHistoryCreate(
@@ -187,6 +187,8 @@ async def create_schedule(
         session
     )
 
+    await session.commit()
+    
     response = ScheduleResponse(
         result = [
             ScheduleItem(
@@ -231,7 +233,7 @@ async def delete_schedule(
     
     stmt = delete(schedule).where(schedule.c.date == date_obj, schedule.c.room_id == room_id)
     await session.execute(stmt)
-    await session.commit()
+    
     
     await add_action_to_history(
         ActionHistoryCreate(
@@ -247,6 +249,8 @@ async def delete_schedule(
         session
     )
     
+
+    await session.commit()
     response = ScheduleResponse(
         result=[
             ScheduleItem(
