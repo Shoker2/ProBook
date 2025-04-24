@@ -1,10 +1,11 @@
 from fastapi import (
     APIRouter,
     HTTPException,
-    UploadFile
+    UploadFile,
+    Depends
 )
 from schemas.token import BaseTokenResponse
-from fastapi.params import Depends, File
+from fastapi.params import File
 import os
 import hmac
 import hashlib

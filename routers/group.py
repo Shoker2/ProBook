@@ -143,7 +143,7 @@ async def delete_group(
         subject_uuid=user.uuid,
         object_table=OBJECT_TABLE,
         object_id=old_data.id,
-        detail=old_data
+        detail=old_data.model_dump()
     ), session)
 
     await session.commit()

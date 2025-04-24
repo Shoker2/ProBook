@@ -96,7 +96,7 @@ async def get_microsoft_me(user: UserToken):
     return user_info_response.json()
 
 
-async def get_microsoft_me_photo(user: UserToken):
+async def get_microsoft_me_photo(user: UserToken, session: AsyncSession):
     prefix = 'user_image:'
     image_path = await redis_db.get(f"{prefix}{user.uuid}")
     
@@ -119,7 +119,7 @@ async def get_microsoft_me_photo(user: UserToken):
                 headers={"content-type": "image/jpeg"}
             )
 
-            img_save = (await upload_file(user, file)).result
+            img_save = (await upload_file(user, file, session)).result
             image_path = img_save.file_name
 
         await redis_db.set(f"{prefix}{uuid}", image_path, ex=7200)
@@ -130,9 +130,9 @@ async def get_microsoft_me_photo(user: UserToken):
 
 
 @router_users.get('/me', response_model=BaseTokenResponse[UserReadMicrosoft])
-async def get_me_user(user: UserToken = Depends(get_current_user)):
+async def get_me_user(user: UserToken = Depends(get_current_user), session: AsyncSession = Depends(get_async_session)):
     microsoft_me_info = await get_microsoft_me(user)
-    microsoft_me_photo = await get_microsoft_me_photo(user)
+    microsoft_me_photo = await get_microsoft_me_photo(user, session)
     
     return BaseTokenResponse(
         new_token=user.new_token,
