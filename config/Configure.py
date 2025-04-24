@@ -33,8 +33,18 @@ class Configure:
 		self.config.read(self.config_path, encoding='utf-8')
 		return self.config[section][key]
 	
-	def get(self, selection, key):
-		return ast.literal_eval(self.config[selection][key])
+	def get(self, selection, key, default_value=None):
+		value = self.config[selection][key]
+
+		if value != '':
+			try:
+				value = ast.literal_eval(value)
+			except SyntaxError:
+				pass
+		else:
+			value = default_value
+
+		return value
 
 	def keys(self):
 		return self.config.keys()

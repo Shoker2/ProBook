@@ -18,9 +18,11 @@ api_key_header = APIKeyHeader(name='Authorization', auto_error=False)
 
 CLIENT_ID = config['Microsoft']['client_id']
 CLIENT_SECRET = config['Microsoft']['client_secret']
+TENANT = config.get('Microsoft', 'tenant_id', 'common')
+
 REDIRECT_URI = config['Microsoft']['redirect_url']
 
-microsoft_oauth_client = MicrosoftGraphOAuth2(CLIENT_ID, CLIENT_SECRET)
+microsoft_oauth_client = MicrosoftGraphOAuth2(CLIENT_ID, CLIENT_SECRET, TENANT)
 
 ALGORITHM = "HS256"
 SECRET = config['Miscellaneous']['secret']

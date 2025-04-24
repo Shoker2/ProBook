@@ -8,12 +8,6 @@ config = Configure(default_config={
         "DB_USER": "postgres",
         "DB_PASS": "",
     },
-    "SMTP": {
-        "server": "smtp.mail.ru",
-        "port": 587,
-        "email": "",
-        "password": ""
-    },
     "Redis": {
         "host": "redis",
         "port": 6379,
@@ -28,6 +22,7 @@ config = Configure(default_config={
     "Microsoft": {
         "client_id": "",
         "client_secret": "",
+        "tenant_id": "",
         "redirect_url": "http://localhost:8000/auth/microsoft/token"
     }
 })
