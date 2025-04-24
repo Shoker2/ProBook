@@ -32,9 +32,10 @@ async def create_group(
         permissions=group.permissions
     )
     
-    session.add(new_group)
-
-    await session.refresh(new_group)
+    stmp = group_db.insert().values(name=group.name, permissions=group.permissions).returning(group_db)
+    
+    result = await session.execute(stmp)
+    new_group = result.fetchone()
 
     group = GroupRead(
         id=new_group.id,
