@@ -4,6 +4,7 @@ from fastapi import (
     Depends,
     Query
 )
+from routers.item import OBJECT_TABLE
 from schemas.coworking import (
     CoworkingCreate,
     CoworkingEdit,
@@ -44,115 +45,86 @@ from models_ import (
     item as item_db,
 )
 from config import config
+from schemas import *
+from auth import *
+from action_history import add_action_to_history, HistoryActions
 
 router = APIRouter(
     prefix="/coworkings",
     tags=["coworkings"]
 )
 
+OBJECT_TABLE = "personal_reservation"
 
-@router.post(
-    "/",
-    response_model=CoworkingCreate
-)
+@router.post("/", response_model=CoworkingCreate)
 async def create_coworking(
     coworking_data: CoworkingCreate,
     user: UserToken = Depends(get_current_user),
     session: AsyncSession = Depends(get_async_session)
 ):
-    
     coworking_data.date_start = coworking_data.date_start.replace(tzinfo=None)
-    coworking_data.date_end = coworking_data.date_end.replace(tzinfo=None)
-
+    coworking_data.date_end   = coworking_data.date_end.replace(tzinfo=None)
     if not time_manager(coworking_data.date_start, coworking_data.date_end):
-        raise HTTPException(
-            status_code=HTTPStatus.BAD_REQUEST,
-            detail=TIME_VALIDATION_ERROR
-        )
-    
-    now_date = datetime.now().replace(hour=0, minute=0, microsecond=0, tzinfo=None)
-
-    min_available_date = now_date + timedelta(days=config.get("Miscellaneous", "min_available_day_booking"))
-    max_available_date = now_date + timedelta(days=config.get("Miscellaneous", "max_available_day_booking"))
-
-    if min_available_date > coworking_data.date_start or coworking_data.date_end > max_available_date:
-        raise HTTPException(
-            status_code=HTTPStatus.BAD_REQUEST,
-            detail=DATETIME_NOT_AVAILABLE
-        )
-
-    if coworking_data.needable_items:
-        items_query = select(item_db).where(
-            item_db.c.id.in_(coworking_data.needable_items)
-        )
-        items_result = await session.execute(items_query)
-        found_items = items_result.fetchall()
-
-        if len(found_items) != len(coworking_data.needable_items):
-            found_ids = {item.id for item in found_items}
-            raise HTTPException(
-                status_code=HTTPStatus.NOT_FOUND,
-                detail=ITEMS_NOT_FOUND
-            )
-
-    room_query = select(room_db).where(room_db.c.id == coworking_data.room_id)
-    room_result = await session.execute(room_query)
-    room = room_result.first()
-
+        raise HTTPException(HTTPStatus.BAD_REQUEST, detail="TIME_VALIDATION_ERROR")
+    min_days = int(config.get("Miscellaneous", "min_available_day_booking"))
+    max_days = int(config.get("Miscellaneous", "max_available_day_booking"))
+    today    = datetime.now().replace(hour=0, minute=0, microsecond=0)
+    min_date = today + timedelta(days=min_days)
+    max_date = today + timedelta(days=max_days)
+    if coworking_data.date_start < min_date or coworking_data.date_end > max_date:
+        raise HTTPException(HTTPStatus.BAD_REQUEST, detail="DATETIME_NOT_AVAILABLE")
+    room_row = await session.execute(
+        select(room_db).where(room_db.c.id == coworking_data.room_id)
+    )
+    if not room_row.first():
+        raise HTTPException(HTTPStatus.NOT_FOUND, detail="ROOM_NOT_FOUND")
     if not checking_for_permission(Permissions.coworkings_moderate.value, user):
         coworking_data.status = app_status.not_moderated.value
-
-    if not room:
-        raise HTTPException(
-            status_code=HTTPStatus.NOT_FOUND,
-            detail=ROOM_NOT_FOUND
-        )
-
-    coworking_dict = coworking_data.model_dump()
-    coworking_dict['user_uuid'] = user.uuid
-    if coworking_dict['date_start'].tzinfo is not None:
-        coworking_dict['date_start'] = coworking_dict['date_start'].replace(
-            tzinfo=None)
-
-    if coworking_dict['date_end'].tzinfo is not None:
-        coworking_dict['date_end'] = coworking_dict['date_end'].replace(
-            tzinfo=None)
-
-    overlapping_query = select(coworking_db).where(
-        and_(
-            coworking_db.c.room_id == coworking_data.room_id,
-            coworking_db.c.status == app_status.approve.value,
-            func.date(coworking_db.c.date_start) == func.date(
-                coworking_dict['date_start']),
-            or_(
-                and_(
-                    coworking_db.c.date_start <= coworking_dict['date_start'],
-                    coworking_db.c.date_end > coworking_dict['date_start']
+    overlap = await session.execute(
+        select(coworking_db).where(
+            and_(
+                coworking_db.c.room_id == coworking_data.room_id,
+                coworking_db.c.status == app_status.approve.value,
+                func.date(coworking_db.c.date_start) == func.date(coworking_data.date_start),
+                or_(
+                    and_(
+                        coworking_db.c.date_start <= coworking_data.date_start,
+                        coworking_db.c.date_end   >  coworking_data.date_start
+                    ),
+                    and_(
+                        coworking_db.c.date_start <  coworking_data.date_end,
+                        coworking_db.c.date_end   >= coworking_data.date_end
+                    ),
+                    and_(
+                        coworking_db.c.date_start >= coworking_data.date_start,
+                        coworking_db.c.date_end   <= coworking_data.date_end
+                    ),
                 ),
-                and_(
-                    coworking_db.c.date_start < coworking_dict['date_end'],
-                    coworking_db.c.date_end >= coworking_dict['date_end']
-                ),
-                and_(
-                    coworking_db.c.date_start >= coworking_dict['date_start'],
-                    coworking_db.c.date_end <= coworking_dict['date_end']
-                )
             )
         )
     )
-
-    result = await session.execute(overlapping_query)
-    if result.first():
-        raise HTTPException(
-            status_code=HTTPStatus.CONFLICT,
-            detail=ROOM_IS_ALREADY
-        )
-
-    query = insert(coworking_db).values(**coworking_dict)
-    await session.execute(query)
+    if overlap.first():
+        raise HTTPException(HTTPStatus.CONFLICT, detail="ROOM_IS_ALREADY")
+    insert_stmt = (
+        insert(coworking_db)
+        .values(**coworking_data.model_dump(), user_uuid=str(user.uuid))
+        .returning(coworking_db.c.id)
+    )
+    res    = await session.execute(insert_stmt)
+    new_id = res.scalar_one()
+    await add_action_to_history(
+        ActionHistoryCreate(
+            action=HistoryActions.create.value,
+            subject_uuid=user.uuid,
+            object_table="personal_reservation",
+            object_id=new_id,
+            detail={**coworking_data.model_dump(), "user_uuid": str(user.uuid)}
+        ),
+        session
+    )
     await session.commit()
-
     return coworking_data
+
 
 
 @router.get(
@@ -303,6 +275,18 @@ async def delete_coworking(
         coworking_db.c.id == id
     )
     await session.execute(delete_query)
+    
+    await add_action_to_history(
+        ActionHistoryCreate(
+            action=HistoryActions.delete.value,
+            subject_uuid=user.uuid,
+            object_table="personal_reservation",
+            object_id=id,
+            detail=dict(coworking._mapping)
+        ),
+        session
+    )
+    
     await session.commit()
 
     return "OK"
@@ -422,12 +406,29 @@ async def edit_coworking(
                 detail=COWORKING_IS_ALREADY
             )
 
-    coworking_data = CoworkingEdit(**coworking_data.model_dump())
-
     query = update(coworking_db).where(
         coworking_db.c.id == coworking_data.id
     ).values(**coworking_data.model_dump(exclude_none=True))
     await session.execute(query)
+    
+    detail_update = ActionHistoryDetailUpdate()
+    update_data = coworking_data.model_dump(exclude_none=True)
+    
+    for key, new_value in update_data.items():
+        if key != 'id':
+            detail_update.update(key, getattr(coworking, key), new_value)
+    
+    await add_action_to_history(
+        ActionHistoryCreate(
+            action=HistoryActions.update.value,
+            subject_uuid=user.uuid,
+            object_table="personal_reservation",
+            object_id=coworking_data.id,
+            detail=detail_update
+        ),
+        session
+    )
+    
     await session.commit()
 
     return coworking_data

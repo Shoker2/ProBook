@@ -20,26 +20,29 @@ router = APIRouter(
 OBJECT_TABLE = "room"
 
 @router.post('/', response_model=BaseTokenResponse[RoomRead])
-async def create_item(
+async def create_room(
         room: RoomCreate,
         user: UserToken = Depends(get_depend_user_with_perms([Permissions.rooms_create.value])),
         session: AsyncSession = Depends(get_async_session)
     ):
 
-    insert_statement = room_db.insert().values(**room.model_dump())
-    
-    result = await session.execute(insert_statement)
+    insert_stmt = (
+        room_db.insert()
+        .returning(room_db.c.id)
+        .values(**room.model_dump())
+    )
+    res = await session.execute(insert_stmt)
+    new_id = res.scalar_one()
 
-    select_statement = room_db.select().where(room_db.c.id == result.inserted_primary_key[0])
-    row = (await session.execute(select_statement)).fetchone()
-
+    select_stmt = room_db.select().where(room_db.c.id == new_id)
+    row = (await session.execute(select_stmt)).fetchone()
     result = RoomRead(**row._mapping)
 
     await add_action_to_history(ActionHistoryCreate(
         action=HistoryActions.create.value,
         subject_uuid=user.uuid,
         object_table=OBJECT_TABLE,
-        object_id=room.id,
+        object_id=new_id,             
         detail=row._mapping
     ), session)
 
@@ -49,6 +52,7 @@ async def create_item(
         new_token=user.new_token,
         result=result
     )
+
 
 @router.get('/{id}', response_model=RoomRead)
 async def get_room(
