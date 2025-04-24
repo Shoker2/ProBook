@@ -229,7 +229,7 @@ async def get_events(
     limit = min(max(1, limit), 60)
     page = max(1, page) - 1
 
-    query = select(event_db).limit(limit).offset(page * limit)
+    query = select(event_db).limit(limit).offset(page * limit).order_by(event_db.c.date_start)
 
     if status is not None:
         query = query.where(event_db.c.status == status)

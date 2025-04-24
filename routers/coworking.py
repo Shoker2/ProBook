@@ -56,7 +56,7 @@ router = APIRouter(
 
 OBJECT_TABLE = "personal_reservation"
 
-@router.post("/", response_model=CoworkingCreate)
+@router.post("/", response_model=CoworkingRead)
 async def create_coworking(
     coworking_data: CoworkingCreate,
     user: UserToken = Depends(get_current_user),
@@ -108,22 +108,23 @@ async def create_coworking(
     insert_stmt = (
         insert(coworking_db)
         .values(**coworking_data.model_dump(), user_uuid=str(user.uuid))
-        .returning(coworking_db.c.id)
+        .returning(coworking_db)
     )
-    res    = await session.execute(insert_stmt)
-    new_id = res.scalar_one()
+    res = await session.execute(insert_stmt)
+    res = res.fetchone()
+
     await add_action_to_history(
         ActionHistoryCreate(
             action=HistoryActions.create.value,
             subject_uuid=user.uuid,
             object_table="personal_reservation",
-            object_id=new_id,
-            detail={**coworking_data.model_dump(), "user_uuid": str(user.uuid)}
+            object_id=res.id,
+            detail={**res._mapping, "user_uuid": str(user.uuid)}
         ),
         session
     )
     await session.commit()
-    return coworking_data
+    return res._mapping
 
 
 
@@ -194,7 +195,7 @@ async def get_coworkings(
     limit = min(max(1, limit), 60)
     page = max(1, page) - 1
 
-    query = select(coworking_db).limit(limit).offset(page * limit)
+    query = select(coworking_db).limit(limit).offset(page * limit).order_by(coworking_db.c.date_start)
 
     if status is not None:
         query = query.where(coworking_db.c.status == status)
