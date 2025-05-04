@@ -165,6 +165,13 @@ async def update_room(
     if room.description is not None:
         stmt = stmt.values(description=room.description)
         op_detail.update("description", old_data.description, room.description)
+
+    if room.img is not None or room.img == "":
+        if room.img == "":
+            room.img = None
+
+        stmt = stmt.values(img=room.img)
+        op_detail.update("img", old_data.img, room.img)
     
     if stmt.whereclause is None:
         raise HTTPException(

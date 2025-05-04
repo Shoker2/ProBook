@@ -54,6 +54,7 @@ room = Table(
     Column("id", Integer, primary_key=True),
     Column("name", String, nullable=False),
     Column("capacity", Integer, nullable=False),
+    Column("img", String),
     Column("description", TEXT, nullable=False, server_default="")
 )
 
