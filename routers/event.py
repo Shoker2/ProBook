@@ -5,6 +5,7 @@ from fastapi import (
     Query,
     status
 )
+import os
 from sqlalchemy.dialects.postgresql import ARRAY, UUID as pg_UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import date, datetime, timedelta
@@ -47,6 +48,7 @@ from auth import (
     UserToken,
 )
 from details import *
+from routers.uploader import STATIC_IMAGES_DIR
 from shared.utils.events import get_max_date, create_events_before, check_overlapping, repeatability
 from shared import time_manager
 from config import config
@@ -68,6 +70,11 @@ async def create_event(
     user: UserToken = Depends(get_current_user),
     session: AsyncSession = Depends(get_async_session)
 ):
+    if event_data.img is not None and not os.path.exists(f'{STATIC_IMAGES_DIR}/{event_data.img}'):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=IMAGE_NOT_EXISTS
+        )
     
     event_data.date_start = event_data.date_start.replace(tzinfo=None)
     event_data.date_end = event_data.date_end.replace(tzinfo=None)
@@ -347,6 +354,15 @@ async def edit_event(
             raise HTTPException(
                 status_code=HTTPStatus.FORBIDDEN,
                 detail=PERMISSION_IS_NOT_EXIST
+            )
+    
+    if event_data.img is not None or event_data.img == "":
+        if event_data.img == "":
+            event_data.img = None
+        elif not os.path.exists(f'{STATIC_IMAGES_DIR}/{event_data.img}'):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=IMAGE_NOT_EXISTS
             )
 
     if event_data.room_id is not None:

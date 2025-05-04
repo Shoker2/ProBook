@@ -1,9 +1,11 @@
 from details import *
 from config import config
+import os
 from schemas import *
 from auth import *
 from models_ import room as room_db, event as event_db, personal_reservation as personal_reservation_db
 from permissions import get_depend_user_with_perms, Permissions
+from routers.uploader import STATIC_IMAGES_DIR
 
 from fastapi import APIRouter, HTTPException, Request, Depends, Body, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -169,6 +171,11 @@ async def update_room(
     if room.img is not None or room.img == "":
         if room.img == "":
             room.img = None
+        elif not os.path.exists(f'{STATIC_IMAGES_DIR}/{room.img}'):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=IMAGE_NOT_EXISTS
+            )
 
         stmt = stmt.values(img=room.img)
         op_detail.update("img", old_data.img, room.img)
