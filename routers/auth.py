@@ -114,7 +114,7 @@ async def get_microsoft_me_photo(user: UserToken, session: AsyncSession):
             file_content = user_photo_response.content
 
             file = UploadFile(
-                filename=f"{uuid}.jpg",
+                filename=f"{user.uuid}.jpg",
                 file=io.BytesIO(file_content),
                 headers={"content-type": "image/jpeg"}
             )
@@ -122,8 +122,8 @@ async def get_microsoft_me_photo(user: UserToken, session: AsyncSession):
             img_save = (await upload_file(user, file, session)).result
             image_path = img_save.file_name
 
-        await redis_db.set(f"{prefix}{uuid}", image_path, ex=7200)
-        await redis_db.set(f"{prefix}{uuid}_value", image_path)
+        await redis_db.set(f"{prefix}{user.uuid}", image_path, ex=7200)
+        await redis_db.set(f"{prefix}{user.uuid}_value", image_path)
 
     return image_path if image_path != "" else None
 

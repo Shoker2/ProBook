@@ -68,8 +68,7 @@ async def create_worker(
 
 @router.get('/', response_model=list[UserReadMicrosoft])
 async def get_workers(
-        session: AsyncSession = Depends(get_async_session),
-        current_user: UserToken | None = Depends(get_current_user_optional)
+        session: AsyncSession = Depends(get_async_session)
     ):
 
     select_statement = select(user_db).join(worker_db, worker_db.c.user_uuid == user_db.c.uuid)
@@ -94,8 +93,8 @@ async def get_workers(
                 uuid=user_['uuid'],
                 is_superuser=user_['is_superuser'],
                 group=group,
-                microsoft= microsoft_info,
-                image_path= microsoft_image
+                microsoft = microsoft_info,
+                image_path = microsoft_image
             )
         )
 
