@@ -12,7 +12,26 @@ import hashlib
 from auth import get_current_user
 from schemas.uploader import (
     ImgSave,
-    ImgDelete)
+    ImgDelete
+)
+from sqlalchemy import (
+    insert,
+    select,
+    delete,
+    update,
+    cast,
+    or_,
+    and_,
+    literal_column,
+    func,
+    Integer
+)
+
+from models_ import (
+    event as event_db,
+    room as room_db
+)
+
 from auth import UserToken
 from datetime import datetime
 from config import config
@@ -108,14 +127,28 @@ async def delete_file(
             file_name=file_name,
             message="File successfully deleted"
         )
-        
+
+        action_detail = {"file_name": file_name}
+
+        stmt = update(event_db).where(event_db.c.img == file_name).returning(event_db.c.id).values(img=None)
+        events = await session.execute(stmt)
+        events = events.scalars().all()
+        if len(events) > 0:
+            action_detail["events"] = events
+
+        stmt = update(room_db).where(room_db.c.img == file_name).returning(room_db.c.id).values(img=None)
+        rooms = await session.execute(stmt)
+        rooms = rooms.scalars().all()
+        if len(rooms) > 0:
+            action_detail["rooms"] = rooms
+
         await add_action_to_history(
             ActionHistoryCreate(
                 action=HistoryActions.delete.value,
                 subject_uuid=current_user.uuid,
                 object_table=OBJECT_TABLE,
                 object_id=file_name,
-                detail={"file_name": file_name}
+                detail=action_detail
             ),
             session
         )
