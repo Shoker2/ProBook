@@ -1,9 +1,10 @@
 from details import *
 from config import config
+import logging
 import os
 from schemas import *
 from auth import *
-from models_ import room as room_db, event as event_db, personal_reservation as personal_reservation_db
+from models_ import room as room_db, event as event_db, personal_reservation as personal_reservation_db, schedule as schedule_db
 from permissions import get_depend_user_with_perms, Permissions
 from routers.uploader import STATIC_IMAGES_DIR
 
@@ -119,9 +120,12 @@ async def delete_room(
     ):
 
     del_room = await get_room(id=id, session=session)
-    stmt = room_db.delete().where(room_db.c.id == id)
-
+    
     try:
+        stmt = schedule_db.delete().where(schedule_db.c.room_id == id)
+        await session.execute(stmt)
+
+        stmt = room_db.delete().where(room_db.c.id == id)
         await session.execute(stmt)
     except IntegrityError:
         raise HTTPException(
@@ -134,7 +138,7 @@ async def delete_room(
         subject_uuid=user.uuid,
         object_table=OBJECT_TABLE,
         object_id=id,
-        detail=del_room
+        detail=del_room.model_dump()
     ), session)
 
     await session.commit()
