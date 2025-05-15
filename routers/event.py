@@ -55,6 +55,8 @@ from config import config
 from action_history import add_action_to_history, HistoryActions
 from schemas import ActionHistoryCreate, ActionHistoryDetailUpdate
 
+OBJECT_TABLE = "event"
+
 router = APIRouter(
     prefix="/events",
     tags=["events"]
@@ -155,7 +157,7 @@ async def create_event(
         ActionHistoryCreate(
             action=HistoryActions.create.value,
             subject_uuid=user.uuid,
-            object_table="event",
+            object_table=OBJECT_TABLE,
             object_id=res.id,
             detail=event_dict
         ),
@@ -324,7 +326,7 @@ async def delete_event(
         ActionHistoryCreate(
             action=HistoryActions.delete.value,
             subject_uuid=user.uuid,
-            object_table="event",
+            object_table=OBJECT_TABLE,
             object_id=id,
             detail=dict(event._mapping)
         ),
@@ -485,7 +487,7 @@ async def edit_event(
         ActionHistoryCreate(
             action=HistoryActions.update.value,
             subject_uuid=user.uuid,
-            object_table="event",
+            object_table=OBJECT_TABLE,
             object_id=event_data.id,
             detail=detail_update
         ),
@@ -536,7 +538,7 @@ async def participate_in_event(
         ActionHistoryCreate(
             action=HistoryActions.update.value,
             subject_uuid=user.uuid,
-            object_table="event",
+            object_table=OBJECT_TABLE,
             object_id=id,
             detail={"action": "participate", "user_uuid": str(user.uuid)}
         ),
@@ -590,7 +592,7 @@ async def unparticipate_from_event(
         ActionHistoryCreate(
             action=HistoryActions.update.value,
             subject_uuid=user.uuid,
-            object_table="event",
+            object_table=OBJECT_TABLE,
             object_id=id,
             detail={"action": "unparticipate", "user_uuid": str(user.uuid)}
         ),
