@@ -43,6 +43,7 @@ user = Table(
     "user",
     meta_data,
     Column("uuid", UUID, nullable=False, index=True, primary_key=True),
+    Column("name", String),
     Column("is_superuser", Boolean, server_default="false", nullable=False),
     Column("group_id", ForeignKey("group.id"), nullable=True, index=True)
 )

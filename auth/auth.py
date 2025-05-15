@@ -7,7 +7,7 @@ import jwt
 from jwt.exceptions import InvalidTokenError, ExpiredSignatureError
 from datetime import datetime, timedelta, timezone
 from schemas import *
-from models_ import user, group as group_db
+from models_ import user, group as group_db, user as user_db
 from database import *
 from details import *
 from config import config
@@ -93,8 +93,13 @@ async def get_token_by_microsoft_access_token(token: dict, session: AsyncSession
         await create_user(uuid_str=user_uuid, session=session)
 
         prefix = 'info:'
-        await redis_db.set_dict(f'{prefix}{user_uuid}', user_info_response.json())
+        await redis_db.set_dict(f'{prefix}{user_uuid}', user_info)
         await redis_db.set_dict(f'{prefix}{user_uuid}_temp', 1, ex=3600 * 24)
+
+    if user_info is not None and "displayName" in user_info:
+        stmt = update(user_db).where(user_db.c.uuid == user_uuid).values(name=user_info['displayName'])
+        await session.execute(stmt)
+        await session.commit()
 
     return GetToken(
         token=token
@@ -116,7 +121,7 @@ async def auth_refresh_token(refresh_token: str, session: AsyncSession):
 
 # Получение пользователя по UUID
 async def get_user_by_uuid(uuid: str, session: AsyncSession) -> UserRead | None:
-    result = await session.execute(select(user.c.uuid, user.c.is_superuser, user.c.group_id).where(user.c.uuid == uuid))
+    result = await session.execute(select(user.c.uuid, user.c.is_superuser, user.c.group_id, user.c.name).where(user.c.uuid == uuid))
     data = result.first()
 
     if data is None:
@@ -129,6 +134,7 @@ async def get_user_by_uuid(uuid: str, session: AsyncSession) -> UserRead | None:
     return UserRead(
         uuid=data.uuid,
         is_superuser=data.is_superuser,
+        name=data.name,
         group=group
     )
 
@@ -235,12 +241,10 @@ async def get_current_user(
         token = None
 
     user = UserToken(
-        uuid=user.uuid,
-        group=user.group,
         microsoft_access_token=microsoft_token,
         microsoft_refresh_token=microsoft_refresh_token,
-        is_superuser=user.is_superuser,
-        new_token=token
+        new_token=token,
+        **user.model_dump()
     )
     
     request.state.__auth_user_data = user

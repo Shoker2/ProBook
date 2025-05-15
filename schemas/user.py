@@ -19,6 +19,7 @@ class GroupUpdate(BaseModel):
 
 class UserCreate(BaseModel):
     uuid: uuid.UUID
+    name: str | None
     is_superuser: bool = False
 
 class UserRead(UserCreate):

@@ -67,7 +67,7 @@ async def get_token_callback(request: Request, session: AsyncSession = Depends(g
     return await get_token_by_microsoft_access_token(token, session)
 
 
-async def get_microsoft_me(user: UserToken):
+async def get_microsoft_me(user: UserToken, session: AsyncSession):
     """
     Fetch the current user's information from Microsoft Graph API.
     """
@@ -90,10 +90,17 @@ async def get_microsoft_me(user: UserToken):
     if user_info_response.status_code != 200:
         raise HTTPException(status_code=user_info_response.status_code, detail=FAILED_FETCH_USER_INFO)
 
-    await redis_db.set_dict(f'{prefix}{user.uuid}', user_info_response.json())
+    microsoft_data = user_info_response.json()
+
+    await redis_db.set_dict(f'{prefix}{user.uuid}', microsoft_data)
     await redis_db.set_dict(f'{prefix}{user.uuid}_temp', 1, ex=3600 * 24)
 
-    return user_info_response.json()
+    if microsoft_data is not None and "displayName" in microsoft_data:
+        stmt = update(user_db).where(user_db.c.uuid == user.uuid).values(name=microsoft_data['displayName'])
+        await session.execute(stmt)
+        await session.commit()
+
+    return microsoft_data
 
 
 async def get_microsoft_me_photo(user: UserToken, session: AsyncSession):
@@ -131,7 +138,7 @@ async def get_microsoft_me_photo(user: UserToken, session: AsyncSession):
 
 @router_users.get('/me', response_model=BaseTokenResponse[UserReadMicrosoft])
 async def get_me_user(user: UserToken = Depends(get_current_user), session: AsyncSession = Depends(get_async_session)):
-    microsoft_me_info = await get_microsoft_me(user)
+    microsoft_me_info = await get_microsoft_me(user, session)
     microsoft_me_photo = await get_microsoft_me_photo(user, session)
     
     return BaseTokenResponse(
@@ -176,13 +183,16 @@ async def get_users(
     limit = min(max(1, limit), 60)
     page = max(1, page) - 1
 
-    stmt = select(user_db.c.uuid, user_db.c.is_superuser, user_db.c.group_id).limit(limit).offset(page * limit)
+    stmt = select(user_db).limit(limit).offset(page * limit)
 
     if is_superuser is not None:
         stmt = stmt.where(user_db.c.is_superuser == is_superuser)
     
     if group_id is not None:
         stmt = stmt.where(user_db.c.group_id == group_id)
+
+    if display_name is not None:
+        stmt = stmt.filter(user_db.c.name.like(f'%{display_name}%'))
 
     result = await session.execute(stmt)
     data = result.fetchall()
@@ -198,15 +208,13 @@ async def get_users(
             UserReadMicrosoft(
                 uuid=user_.uuid,
                 is_superuser=user_.is_superuser,
+                name=user_.name,
                 group=group,
 
                 microsoft= await get_microsoft_user_info(user_.uuid),
                 image_path= await get_user_image_path(user_.uuid)
             )
         )
-
-    if display_name is not None:
-        users = [user_ for user_ in users if user_.microsoft is not None and display_name in user_.microsoft["displayName"] ]
     
     return BaseTokenResponse(
         new_token=user.new_token,
