@@ -166,6 +166,7 @@ async def get_users(
         user: UserToken = Depends(get_current_user),
         session: AsyncSession = Depends(get_async_session),
 
+        display_name: str | None = None,
         is_superuser: bool | None = None,
         group_id: int | None = None,
         limit: int = 10,
@@ -203,6 +204,9 @@ async def get_users(
                 image_path= await get_user_image_path(user_.uuid)
             )
         )
+
+    if display_name is not None:
+        users = [user_ for user_ in users if user_.microsoft is not None and display_name in user_.microsoft["displayName"] ]
     
     return BaseTokenResponse(
         new_token=user.new_token,
