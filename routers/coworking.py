@@ -4,6 +4,7 @@ from fastapi import (
     Depends,
     Query
 )
+import math
 from routers.item import OBJECT_TABLE
 from schemas.coworking import (
     CoworkingCreate,
@@ -130,7 +131,7 @@ async def create_coworking(
 
 @router.get(
     '/my',
-    response_model=List[ReadItem]
+    response_model=BaseTokenPageResponse[List[ReadItem]]
 )
 async def my_coworkings(
         current_user: UserToken = Depends(get_current_user),
@@ -143,7 +144,7 @@ async def my_coworkings(
         limit: int = 10,
         page: int = 1,
 ):
-    return await get_coworkings(
+    result = await get_coworkings(
         session = session,
         room_id = room_id,
         needable_items = needable_items,
@@ -153,6 +154,13 @@ async def my_coworkings(
         limit = limit,
         page = page,
         status = status
+    )
+
+    return BaseTokenPageResponse(
+        current_page=result.current_page,
+        total_page=result.total_page,
+        new_token=current_user.new_token,
+        result=result.result,
     )
 
 
@@ -179,7 +187,7 @@ async def get_coworking(
 
 @router.get(
     "/",
-    response_model=list[ReadItem]
+    response_model=BasePageResponse[list[ReadItem]]
 )
 async def get_coworkings(
     session: AsyncSession = Depends(get_async_session),
@@ -240,7 +248,15 @@ async def get_coworkings(
         for coworking in coworkings
     ]
 
-    return response
+    current_page = page + 1
+    total_pages = await session.scalar(select(func.count(user_db.c.uuid)))
+    total_pages = math.ceil(total_pages/limit)
+
+    return BasePageResponse(
+        current_page=current_page,
+        total_page=total_pages,
+        result=response
+    )
 
 
 @router.delete("/{id}")

@@ -117,7 +117,7 @@ async def add_new_token_to_response(request: Request, call_next):
         response_body = [chunk async for chunk in response.body_iterator]
         content_dict = json.loads(b"".join(response_body).decode("utf-8"))
 
-        if "new_token" in content_dict and "result" in content_dict and len(content_dict.keys()) == 2:
+        if "new_token" in content_dict and "result" in content_dict:
             response = JSONResponse(
                 content=content_dict, status_code=response.status_code)
         else:

@@ -4,13 +4,15 @@ from schemas import *
 from database import redis_db, get_async_session
 from auth import *
 from .uploader import upload as upload_file
+from auth.auth import get_user_by_uuid as get_user_by_uuid_db, get_user_image_path, get_microsoft_user_info
+from models_ import user as user_db
 
 from fastapi import APIRouter, HTTPException, Request, Depends, Body, status, UploadFile
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import func
 from httpx_oauth.oauth2 import RefreshTokenError, GetAccessTokenError
-from auth.auth import get_user_by_uuid as get_user_by_uuid_db, get_user_image_path, get_microsoft_user_info
-from models_ import user as user_db
+import math
 import io
 
 router = APIRouter(
@@ -168,7 +170,7 @@ async def get_user_by_uuid(uuid: str, user: UserToken = Depends(get_current_user
     )
 
 
-@router_users.get('/', response_model=BaseTokenResponse[list[UserReadMicrosoft]])
+@router_users.get('/', response_model=BaseTokenPageResponse[list[UserReadMicrosoft]])
 async def get_users(
         user: UserToken = Depends(get_current_user),
         session: AsyncSession = Depends(get_async_session),
@@ -182,6 +184,10 @@ async def get_users(
 
     limit = min(max(1, limit), 60)
     page = max(1, page) - 1
+
+    current_page = page + 1
+    total_pages = await session.scalar(select(func.count(user_db.c.uuid)))
+    total_pages = math.ceil(total_pages/limit)
 
     stmt = select(user_db).limit(limit).offset(page * limit)
 
@@ -216,7 +222,9 @@ async def get_users(
             )
         )
     
-    return BaseTokenResponse(
+    return BaseTokenPageResponse(
+        current_page=current_page,
+        total_page=total_pages,
         new_token=user.new_token,
         result=users,
     )

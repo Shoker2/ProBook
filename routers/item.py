@@ -9,8 +9,9 @@ from fastapi import APIRouter, HTTPException, Request, Depends, Body, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import IntegrityError
 from httpx_oauth.oauth2 import RefreshTokenError, GetAccessTokenError
-from sqlalchemy import update, select, insert, delete
+from sqlalchemy import update, select, insert, delete, func
 from functools import partial
+import math
 from action_history import add_action_to_history, HistoryActions
 
 router = APIRouter(
@@ -69,7 +70,7 @@ async def get_item(
 
     return result
 
-@router.get('/', response_model=list[ItemRead])
+@router.get('/', response_model=BasePageResponse[list[ItemRead]])
 async def get_all_items(
         room_id: int | None = None,
         limit: int = 10,
@@ -97,7 +98,15 @@ async def get_all_items(
     for row in rows:
         result.append(ItemRead(**row._mapping))
 
-    return result
+    current_page = page + 1
+    total_pages = await session.scalar(select(func.count(user_db.c.uuid)))
+    total_pages = math.ceil(total_pages/limit)
+
+    return BasePageResponse(
+        current_page=current_page,
+        total_page=total_pages,
+        result=result
+    )
 
 @router.delete(
     '/{id}',

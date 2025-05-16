@@ -12,7 +12,8 @@ from fastapi import APIRouter, HTTPException, Request, Depends, Body, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import IntegrityError
 from httpx_oauth.oauth2 import RefreshTokenError, GetAccessTokenError
-from sqlalchemy import update, select, insert, delete
+from sqlalchemy import update, select, insert, delete, func
+import math
 from action_history import *
 
 router = APIRouter(
@@ -75,7 +76,7 @@ async def get_room(
 
     return result
 
-@router.get('/', response_model=list[RoomRead])
+@router.get('/', response_model=BasePageResponse[list[RoomRead]])
 async def get_all_rooms(
         limit: int = 10,
         page: int = 1,
@@ -97,6 +98,17 @@ async def get_all_rooms(
 
     for row in rows:
         result.append(RoomRead(**row._mapping))
+    
+
+    current_page = page + 1
+    total_pages = await session.scalar(select(func.count(user_db.c.uuid)))
+    total_pages = math.ceil(total_pages/limit)
+
+    return BasePageResponse(
+        current_page=current_page,
+        total_page=total_pages,
+        result=result
+    )
 
     return result
 

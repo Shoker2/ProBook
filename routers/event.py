@@ -6,10 +6,11 @@ from fastapi import (
     status
 )
 import os
+import math
 from sqlalchemy.dialects.postgresql import ARRAY, UUID as pg_UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import date, datetime, timedelta
-from schemas.token import BaseTokenResponse
+from schemas.token import BaseTokenResponse, BasePageResponse, BaseTokenPageResponse
 from database import get_async_session
 from permissions.utils import checking_for_permission
 from permissions import Permissions
@@ -171,7 +172,7 @@ async def create_event(
 
 @router.get(
     '/my',
-    response_model=List[EventRead]
+    response_model=BaseTokenPageResponse[List[EventRead]]
 )
 async def my_events(
         current_user: UserToken = Depends(get_current_user),
@@ -184,7 +185,7 @@ async def my_events(
         limit: int = 10,
         page: int = 1,
 ):
-    return await get_events(
+    result = await get_events(
         session = session,
         room_id = room_id,
         needable_items = needable_items,
@@ -194,6 +195,13 @@ async def my_events(
         limit = limit,
         page = page,
         status = status
+    )
+
+    return BaseTokenPageResponse(
+        current_page=result.current_page,
+        total_page=result.total_page,
+        new_token=current_user.new_token,
+        result=result.result,
     )
 
 
@@ -222,7 +230,7 @@ async def get_event(
 
 @router.get(
     "/",
-    response_model=List[EventRead]
+    response_model=BasePageResponse[List[EventRead]]
 )
 async def get_events(
     session: AsyncSession = Depends(get_async_session),
@@ -282,7 +290,16 @@ async def get_events(
                 EventRead(**(event._mapping))
                 for event in events
             ]
-    return response
+
+    current_page = page + 1
+    total_pages = await session.scalar(select(func.count(user_db.c.uuid)))
+    total_pages = math.ceil(total_pages/limit)
+
+    return BasePageResponse(
+        current_page=current_page,
+        total_page=total_pages,
+        result=response
+    )
 
 
 @router.delete(

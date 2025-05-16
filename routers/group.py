@@ -10,8 +10,9 @@ from permissions import get_depend_user_with_perms, Permissions
 from fastapi import APIRouter, HTTPException, Request, Depends, Body, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from httpx_oauth.oauth2 import RefreshTokenError, GetAccessTokenError
-from sqlalchemy import update, select, insert, delete
+from sqlalchemy import update, select, insert, delete, func
 from action_history import *
+import math
 
 router = APIRouter(
     prefix="/groups",
@@ -92,7 +93,7 @@ async def get_group(
         result=group
     )
 
-@router.get('/', response_model=BaseTokenResponse[list[GroupRead]])
+@router.get('/', response_model=BaseTokenPageResponse[list[GroupRead]])
 async def get_all_groups(
         user: UserToken = Depends(get_depend_user_with_perms([Permissions.groups_view.value])),
         session: AsyncSession = Depends(get_async_session),
@@ -119,9 +120,15 @@ async def get_all_groups(
             )
         )
 
-    return BaseTokenResponse(
-        new_token=user.new_token,
-        result=groups
+    current_page = page + 1
+    total_pages = await session.scalar(select(func.count(user_db.c.uuid)))
+    total_pages = math.ceil(total_pages/limit)
+
+    return BaseTokenPageResponse(
+        current_page=current_page,
+        total_page=total_pages,
+        result=groups,
+        new_token=user.new_token
     )
 
 @router.delete('/{id}', response_model=BaseTokenResponse[str])
