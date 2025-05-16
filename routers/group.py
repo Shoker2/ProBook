@@ -104,6 +104,8 @@ async def get_all_groups(
     limit = min(max(1, limit), 60)
     page = max(1, page) - 1
 
+    total_pages_stmt = select(func.count(group_db.c.id))
+
     stmt = select(group_db.c.id, group_db.c.name, group_db.c.permissions, group_db.c.is_default).limit(limit).offset(page * limit)
     data = await session.execute(stmt)
 
@@ -121,7 +123,7 @@ async def get_all_groups(
         )
 
     current_page = page + 1
-    total_pages = await session.scalar(select(func.count(group_db.c.id)))
+    total_pages = await session.scalar(total_pages_stmt)
     total_pages = math.ceil(total_pages/limit)
 
     return BaseTokenPageResponse(

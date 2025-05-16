@@ -55,25 +55,33 @@ async def get_all_actions(
     page = max(1, page) - 1
     
     select_statement = action_history_db.select().limit(limit).offset(page * limit)
+    total_pages_stmt = select(func.count(action_history_db.c.id))
 
     if action is not None:
         select_statement = select_statement.where(action_history_db.c.action == action)
+        total_pages_stmt = total_pages_stmt.where(action_history_db.c.action == action)
     
     if date_start is not None:
         select_statement = select_statement.where(action_history_db.c.date >= date_start)
+        total_pages_stmt = total_pages_stmt.where(action_history_db.c.date >= date_start)
     
     if date_end is not None:
         select_statement = select_statement.where(action_history_db.c.date <= date_end)
+        total_pages_stmt = total_pages_stmt.where(action_history_db.c.date <= date_end)
     
     if subject_uuid is not None:
         select_statement = select_statement.where(action_history_db.c.subject_uuid == subject_uuid)
+        total_pages_stmt = total_pages_stmt.where(action_history_db.c.subject_uuid == subject_uuid)
     
     if object_table is not None:
         select_statement = select_statement.where(action_history_db.c.object_table == object_table)
+        total_pages_stmt = total_pages_stmt.where(action_history_db.c.object_table == object_table)
     
     if object_id is not None:
         object_id = str(object_id)
+
         select_statement = select_statement.where(action_history_db.c.object_id == object_id)
+        total_pages_stmt = total_pages_stmt.where(action_history_db.c.object_id == object_id)
 
     rows = await session.execute(select_statement)
     rows = rows.fetchall()
@@ -87,7 +95,7 @@ async def get_all_actions(
         result.append(ActionHistoryRead(**row._mapping))
     
     current_page = page + 1
-    total_pages = await session.scalar(select(func.count(action_history_db.c.id)))
+    total_pages = await session.scalar(total_pages_stmt)
     total_pages = math.ceil(total_pages/limit)
 
     return BaseTokenPageResponse(

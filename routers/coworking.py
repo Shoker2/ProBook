@@ -204,9 +204,11 @@ async def get_coworkings(
     page = max(1, page) - 1
 
     query = select(coworking_db).limit(limit).offset(page * limit).order_by(coworking_db.c.date_start)
+    total_pages_stmt = select(func.count(coworking_db.c.id))
 
     if status is not None:
         query = query.where(coworking_db.c.status == status)
+        total_pages_stmt = total_pages_stmt.where(coworking_db.c.status == status)
 
     if date_start is not None and date_end is not None:
         query = query.where(
@@ -214,18 +216,30 @@ async def get_coworkings(
             &  
             (coworking_db.c.date_end >= date_start)
             )
+        
+        total_pages_stmt = total_pages_stmt.query.where(
+            (coworking_db.c.date_start <= date_end) 
+            &  
+            (coworking_db.c.date_end >= date_start)
+            )
 
     elif date_start is not None:
         query = query.where(coworking_db.c.date_start >= date_start)
+        total_pages_stmt = total_pages_stmt.where(coworking_db.c.date_start >= date_start)
     
     elif date_end is not None:
         query = query.where(coworking_db.c.date_end <= date_end)
+        total_pages_stmt = total_pages_stmt.where(coworking_db.c.date_end <= date_end)
 
     if room_id is not None:
         query = query.where(coworking_db.c.room_id == room_id)
+        total_pages_stmt = total_pages_stmt.where(coworking_db.c.room_id == room_id)
     
     if needable_items is not None and needable_items:
         query = query.where(
+            cast(coworking_db.c.needable_items, ARRAY(Integer)).contains(needable_items)
+        )
+        total_pages_stmt = total_pages_stmt.where(
             cast(coworking_db.c.needable_items, ARRAY(Integer)).contains(needable_items)
         )
     
@@ -239,6 +253,7 @@ async def get_coworkings(
             )
 
         query = query.where(coworking_db.c.user_uuid == by_user)
+        total_pages_stmt = total_pages_stmt.where(coworking_db.c.user_uuid == by_user)
 
     result = await session.execute(query)
     coworkings = result.fetchall()
@@ -249,7 +264,7 @@ async def get_coworkings(
     ]
 
     current_page = page + 1
-    total_pages = await session.scalar(select(func.count(coworking_db.c.id)))
+    total_pages = await session.scalar(total_pages_stmt)
     total_pages = math.ceil(total_pages/limit)
 
     return BasePageResponse(

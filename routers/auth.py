@@ -185,20 +185,21 @@ async def get_users(
     limit = min(max(1, limit), 60)
     page = max(1, page) - 1
 
-    current_page = page + 1
-    total_pages = await session.scalar(select(func.count(user_db.c.uuid)))
-    total_pages = math.ceil(total_pages/limit)
+    total_pages_stmt = select(func.count(user_db.c.uuid))
 
     stmt = select(user_db).limit(limit).offset(page * limit)
 
     if is_superuser is not None:
         stmt = stmt.where(user_db.c.is_superuser == is_superuser)
+        total_pages_stmt = total_pages_stmt.where(user_db.c.is_superuser == is_superuser)
     
     if group_id is not None:
         stmt = stmt.where(user_db.c.group_id == group_id)
+        total_pages_stmt = total_pages_stmt.where(user_db.c.group_id == group_id)
 
     if display_name is not None:
         stmt = stmt.filter(user_db.c.name.like(f'%{display_name}%'))
+        total_pages_stmt = total_pages_stmt.filter(user_db.c.name.like(f'%{display_name}%'))
 
     result = await session.execute(stmt)
     data = result.fetchall()
@@ -221,6 +222,10 @@ async def get_users(
                 image_path= await get_user_image_path(user_.uuid)
             )
         )
+
+    current_page = page + 1
+    total_pages = await session.scalar(total_pages_stmt)
+    total_pages = math.ceil(total_pages/limit)
     
     return BaseTokenPageResponse(
         current_page=current_page,

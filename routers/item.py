@@ -82,9 +82,11 @@ async def get_all_items(
     page = max(1, page) - 1
 
     select_statement = item_db.select().limit(limit).offset(page * limit)
+    total_pages_stmt = select(func.count(item_db.c.id))
 
     if room_id is not None:
         select_statement = select_statement.where(item_db.c.room_id == room_id)
+        total_pages_stmt = total_pages_stmt.where(item_db.c.room_id == room_id)
 
     rows = (await session.execute(select_statement)).fetchall()
 
@@ -99,7 +101,7 @@ async def get_all_items(
         result.append(ItemRead(**row._mapping))
 
     current_page = page + 1
-    total_pages = await session.scalar(select(func.count(item_db.c.id)))
+    total_pages = await session.scalar(total_pages_stmt)
     total_pages = math.ceil(total_pages/limit)
 
     return BasePageResponse(

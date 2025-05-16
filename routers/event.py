@@ -247,9 +247,11 @@ async def get_events(
     page = max(1, page) - 1
 
     query = select(event_db).limit(limit).offset(page * limit).order_by(event_db.c.date_start)
+    total_pages_stmt = select(func.count(event_db.c.id))
 
     if status is not None:
         query = query.where(event_db.c.status == status)
+        total_pages_stmt = total_pages_stmt.where(event_db.c.status == status)
 
     if date_start is not None and date_end is not None:
         query = query.where(
@@ -257,18 +259,29 @@ async def get_events(
             &  
             (event_db.c.date_end >= date_start)
             )
+        total_pages_stmt = total_pages_stmt.where(
+            (event_db.c.date_start <= date_end) 
+            &  
+            (event_db.c.date_end >= date_start)
+            )
 
     elif date_start is not None:
         query = query.where(event_db.c.date_start >= date_start)
+        total_pages_stmt = total_pages_stmt.where(event_db.c.date_start >= date_start)
     
     elif date_end is not None:
         query = query.where(event_db.c.date_end <= date_end)
+        total_pages_stmt = total_pages_stmt.where(event_db.c.date_end <= date_end)
 
     if room_id is not None:
         query = query.where(event_db.c.room_id == room_id)
+        total_pages_stmt = total_pages_stmt.where(event_db.c.room_id == room_id)
     
     if needable_items is not None and needable_items:
         query = query.where(
+            cast(event_db.c.needable_items, ARRAY(Integer)).contains(needable_items)
+            )
+        total_pages_stmt = total_pages_stmt.where(
             cast(event_db.c.needable_items, ARRAY(Integer)).contains(needable_items)
             )
     
@@ -282,6 +295,7 @@ async def get_events(
             )
 
         query = query.where(event_db.c.user_uuid == by_user)
+        total_pages_stmt = total_pages_stmt.where(event_db.c.user_uuid == by_user)
 
     result = await session.execute(query)
 
@@ -292,7 +306,7 @@ async def get_events(
             ]
 
     current_page = page + 1
-    total_pages = await session.scalar(select(func.count(event_db.c.id)))
+    total_pages = await session.scalar(total_pages_stmt)
     total_pages = math.ceil(total_pages/limit)
 
     return BasePageResponse(
