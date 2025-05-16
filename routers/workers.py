@@ -92,6 +92,7 @@ async def get_workers(
             UserReadMicrosoft(
                 uuid=user_['uuid'],
                 is_superuser=user_['is_superuser'],
+                name=user_['name'],
                 group=group,
                 microsoft = microsoft_info,
                 image_path = microsoft_image
