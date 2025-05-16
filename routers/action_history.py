@@ -9,7 +9,8 @@ from fastapi import APIRouter, HTTPException, Request, Depends, Body, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import IntegrityError
 from httpx_oauth.oauth2 import RefreshTokenError, GetAccessTokenError
-from sqlalchemy import update, select, insert, delete
+from sqlalchemy import update, select, insert, delete, func
+import math
 
 router = APIRouter(
     prefix="/history",
@@ -36,7 +37,7 @@ async def get_action(
     
     return result
 
-@router.get('/', response_model=list[ActionHistoryRead])
+@router.get('/', response_model=BaseTokenPageResponse[list[ActionHistoryRead]])
 async def get_all_actions(
         action: str | None = None,
         date_start: datetime | None = None,
@@ -84,5 +85,14 @@ async def get_all_actions(
 
     for row in rows:
         result.append(ActionHistoryRead(**row._mapping))
+    
+    current_page = page + 1
+    total_pages = await session.scalar(select(func.count(action_history_db.c.id)))
+    total_pages = math.ceil(total_pages/limit)
 
-    return result
+    return BaseTokenPageResponse(
+        new_token=user.new_token,
+        result=result,
+        current_page=current_page,
+        total_page=total_pages
+    )
