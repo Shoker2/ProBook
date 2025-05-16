@@ -101,7 +101,7 @@ async def get_all_rooms(
     
 
     current_page = page + 1
-    total_pages = await session.scalar(select(func.count(user_db.c.uuid)))
+    total_pages = await session.scalar(select(func.count(room_db.c.id)))
     total_pages = math.ceil(total_pages/limit)
 
     return BasePageResponse(
