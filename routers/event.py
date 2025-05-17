@@ -243,9 +243,10 @@ async def get_events(
     limit: int = 10,
     page: int = 1,
 ):
-    
-    date_start = date_start.replace(tzinfo=None)
-    date_end = date_end.replace(tzinfo=None)
+    if date_start is not None:
+        date_start = date_start.replace(tzinfo=None)
+    if date_end is not None:
+        date_end = date_end.replace(tzinfo=None)
     
     limit = min(max(1, limit), 60)
     page = max(1, page) - 1
