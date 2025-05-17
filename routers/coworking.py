@@ -203,6 +203,9 @@ async def get_coworkings(
     limit = min(max(1, limit), 60)
     page = max(1, page) - 1
 
+    date_start = date_start.replace(tzinfo=None)
+    date_end = date_end.replace(tzinfo=None)
+
     query = select(coworking_db).limit(limit).offset(page * limit).order_by(coworking_db.c.date_start)
     total_pages_stmt = select(func.count(coworking_db.c.id))
 
