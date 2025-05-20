@@ -137,8 +137,8 @@ async def update_template(
         result=response
     )
     
-@router.post("/{room_id}", response_model=BaseTokenResponse[ScheduleResponse])
-async def create_schedule(
+@router.patch("/{room_id}", response_model=BaseTokenResponse[ScheduleResponse])
+async def update_schedule(
     room_id: int,
     schedule_data: CreateSchedule,
     current_user: UserToken = Depends(get_current_user),
@@ -160,21 +160,24 @@ async def create_schedule(
     existing_schedule = result.first()
     
     if existing_schedule:
-        raise HTTPException(
-            status_code=HTTPStatus.BAD_REQUEST,
-            detail=SCHEDULE_EXISTS
+        stmt = update(schedule).\
+            where(
+                schedule.c.date == date_obj,
+                schedule.c.room_id == room_id
+            ).\
+            values(schedule_time = schedule_data.schedule_time)
+    else:
+        stmt = insert(schedule).values(
+            date=date_obj,
+            schedule_time=schedule_data.schedule_time,
+            room_id=room_id
         )
-
-    stmt = insert(schedule).values(
-        date=date_obj,
-        schedule_time=schedule_data.schedule_time,
-        room_id=room_id
-    )
+    
     await session.execute(stmt)
 
     await add_action_to_history(
         ActionHistoryCreate(
-            action=HistoryActions.create.value,
+            action=HistoryActions.update.value,
             subject_uuid=current_user.uuid,
             object_table=OBJECT_TABLE,
             object_id=room_id,
