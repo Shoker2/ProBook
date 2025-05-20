@@ -270,6 +270,7 @@ async def delete_schedule(
 async def get_week_schedule(
     room_id: int,
     date: date | None = None,
+    without_template: bool = False,
     session: AsyncSession = Depends(get_async_session)
 ):
     
@@ -283,20 +284,24 @@ async def get_week_schedule(
             detail=INVALID_DATE
         )
 
-    template_query = select(schedule).where(
-        schedule.c.date.between(
-            SCHEDULE_TEMPLATE[1].date(),
-            SCHEDULE_TEMPLATE[7].date()
-        ),
-        schedule.c.room_id == room_id
-    ).order_by(schedule.c.date)
-    template_result = await session.execute(template_query)
-    template_schedule = template_result.fetchall()
+    if not without_template:
+        template_query = select(schedule).where(
+            schedule.c.date.between(
+                SCHEDULE_TEMPLATE[1].date(),
+                SCHEDULE_TEMPLATE[7].date()
+            ),
+            schedule.c.room_id == room_id
+        ).order_by(schedule.c.date)
+
+    
+        template_result = await session.execute(template_query)
+        template_schedule = template_result.fetchall()
 
     week_query = select(schedule).where(
         schedule.c.date.between(monday, sunday),
         schedule.c.room_id == room_id
     ).order_by(schedule.c.date)
+
     week_result = await session.execute(week_query)
     week_schedule = week_result.fetchall()
 
@@ -315,7 +320,7 @@ async def get_week_schedule(
                     schedule_time=row.schedule_time
                 )
             )
-        else:
+        elif not without_template:
             template_row = template_schedule[template_idx]
             schedule_items.append(
                 ScheduleItem(
@@ -323,6 +328,14 @@ async def get_week_schedule(
                     schedule_time=template_row.schedule_time
                 )
             )
+        else:
+            schedule_items.append(
+                ScheduleItem(
+                    date=current_date,
+                    schedule_time=[]
+                )
+            )
+
         current_date += timedelta(days=1)
         template_idx = (template_idx + 1) % 7
 
