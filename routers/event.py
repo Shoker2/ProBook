@@ -90,10 +90,10 @@ async def create_event(
     
     now_date = datetime.now().replace(hour=0, minute=0, microsecond=0, tzinfo=None)
 
-    min_available_date = now_date + timedelta(days=config.get("Miscellaneous", "min_available_day_booking"))
-    max_available_date = now_date + timedelta(days=config.get("Miscellaneous", "max_available_day_booking"))
+    min_available_date = now_date + timedelta(days=config.get("Miscellaneous", "min_available_day_booking"))    # Минимальная доступная дата для брони (Чтобы сегодня нельзя было забронировать и было больше времени для модерации)
+    max_available_date = now_date + timedelta(days=config.get("Miscellaneous", "max_available_day_booking"))    # Максимальная доступная дата для брони
 
-    if min_available_date > event_data.date_start or event_data.date_end > max_available_date:
+    if not checking_for_permission(Permissions.events_moderate.value, user) and min_available_date > event_data.date_start or event_data.date_end > max_available_date:
         raise HTTPException(
             status_code=HTTPStatus.BAD_REQUEST,
             detail=DATETIME_NOT_AVAILABLE

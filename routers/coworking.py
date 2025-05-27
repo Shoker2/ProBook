@@ -72,8 +72,10 @@ async def create_coworking(
     today    = datetime.now().replace(hour=0, minute=0, microsecond=0)
     min_date = today + timedelta(days=min_days)
     max_date = today + timedelta(days=max_days)
-    if coworking_data.date_start < min_date or coworking_data.date_end > max_date:
-        raise HTTPException(HTTPStatus.BAD_REQUEST, detail="DATETIME_NOT_AVAILABLE")
+
+    if not checking_for_permission(Permissions.coworkings_moderate.value, user) and coworking_data.date_start < min_date or coworking_data.date_end > max_date:
+        raise HTTPException(HTTPStatus.BAD_REQUEST, detail=DATETIME_NOT_AVAILABLE)
+    
     room_row = await session.execute(
         select(room_db).where(room_db.c.id == coworking_data.room_id)
     )
