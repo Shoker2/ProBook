@@ -4,7 +4,7 @@ services:
     build: .
     volumes:
       - .:/app
-    environment: 
+    environment:
       - TZ=Europe/Moscow
     restart: always
     ports:
@@ -17,7 +17,9 @@ services:
     depends_on:
       db:
         condition: service_healthy
-  
+    networks:
+      - probook-network
+
   db:
     image: postgres
     restart: always
@@ -35,7 +37,9 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-  
+    networks:
+      - probook-network
+
   redis:
     image: redis:latest
     container_name: redis_container
@@ -43,7 +47,7 @@ services:
       - "6380:6379"
     volumes:
       - ./redisdata:/data
-    environment: 
+    environment:
       - TZ=Europe/Moscow
     command: >
       sh -c '
@@ -54,6 +58,14 @@ services:
         redis-server /usr/local/etc/redis/redis.conf
       '
     restart: always
+    networks:
+      - probook-network
 
 volumes:
   probook-db-data:
+
+
+networks:
+  probook-network:
+    name: probook-network
+    external: false
