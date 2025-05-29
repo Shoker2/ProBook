@@ -15,6 +15,7 @@ from httpx_oauth.oauth2 import RefreshTokenError, GetAccessTokenError
 from sqlalchemy import update, select, insert, delete, func
 import math
 from action_history import *
+from shared.utils.schedule_utils import schedule_template_fix
 
 router = APIRouter(
     prefix="/rooms",
@@ -50,6 +51,7 @@ async def create_room(
         detail=row._mapping
     ), session)
 
+    await schedule_template_fix(session)
     await session.commit()
 
     return BaseTokenResponse(
@@ -109,8 +111,6 @@ async def get_all_rooms(
         total_page=total_pages,
         result=result
     )
-
-    return result
 
 @router.delete(
     '/{id}',

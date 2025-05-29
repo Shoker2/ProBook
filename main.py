@@ -31,6 +31,7 @@ from mock_data import schedule_template
 from models_ import schedule, room as room_db
 from services import subscribe_expired_keys, repeat_event_updater
 from services.tmp_image_remover import pubsub
+from shared.utils.schedule_utils import schedule_template_fix
 
 
 @asynccontextmanager
@@ -41,29 +42,8 @@ async def lifespan(app: FastAPI):
     asyncio.create_task(repeat_event_updater())
 
     async with async_session_maker() as session:
-        query = select(room_db.c.id)
-        room_id_result = await session.execute(query)
-        
-        for room_id in room_id_result.fetchall():
-            room_id = room_id[0]
-
-            for date, schedule_times in schedule_template.items():
-
-                date_obj = datetime.strptime(
-                    date, '%d.%m.%Y').date()
-
-                query = select(schedule).where(date_obj == schedule.c.date, schedule.c.room_id == room_id)
-                result = await session.execute(query)
-                schedule_row = result.first()
-                if not schedule_row:
-                    stmt = insert(schedule).values(
-                        date=date_obj,
-                        schedule_time=schedule_times,
-                        room_id=room_id
-                    )
-                    await session.execute(stmt)
-            
-            await session.commit()
+        await schedule_template_fix(session)
+        await session.commit()
     
     yield
     
