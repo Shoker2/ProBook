@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, Request, HTTPException
+from fastapi import FastAPI, Depends, Request, HTTPException, APIRouter
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
@@ -64,9 +64,19 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="TP2 API",
-    lifespan=lifespan
+    title="ProBook API",
+    lifespan=lifespan,
+    docs_url=None,
+    openapi_url=None,
+    redoc_url=None,
 )
+
+os.makedirs(STATIC_IMAGES_DIR, exist_ok=True)
+app.mount("/api/static", StaticFiles(directory=STATIC_IMAGES_DIR), name="static")
+api_router = APIRouter(
+    prefix="/api"
+)
+
 
 os.makedirs(STATIC_IMAGES_DIR, exist_ok=True)
 app.mount("/static", StaticFiles(directory=STATIC_IMAGES_DIR), name="static")
@@ -86,7 +96,8 @@ routers = [
 ]
 
 for router in routers:
-    app.include_router(router)
+    api_router.include_router(router)
+
 
 async def add_new_token_to_response(request: Request, call_next):
     response = await call_next(request)
@@ -118,10 +129,12 @@ async def add_new_token_middleware(request: Request, call_next):
     return await add_new_token_to_response(request, call_next)
 
 
-@app.get('/')
+@api_router.get('/')
 async def root():
     return {'data': 'Hello world'}
     
+app.include_router(api_router)
+
 origins = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
@@ -136,6 +149,7 @@ app.add_middleware(
      allow_methods=["*"],
      allow_headers=["Authorization", "Content-Type"],  
 )
+
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
