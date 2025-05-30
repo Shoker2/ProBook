@@ -72,14 +72,10 @@ app = FastAPI(
 )
 
 os.makedirs(STATIC_IMAGES_DIR, exist_ok=True)
-app.mount("/api/static", StaticFiles(directory=STATIC_IMAGES_DIR), name="static")
+app.mount("/probook/api/static", StaticFiles(directory=STATIC_IMAGES_DIR), name="static")
 api_router = APIRouter(
-    prefix="/api"
+    prefix="/probook/api"
 )
-
-
-os.makedirs(STATIC_IMAGES_DIR, exist_ok=True)
-app.mount("/static", StaticFiles(directory=STATIC_IMAGES_DIR), name="static")
 
 routers = [
     auth_router,
