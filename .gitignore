@@ -5,7 +5,6 @@ script.py.mako
 .vscode/PythonImportHelper-v2-Completion.json
 todo.txt
 *.ini
-README.md
 .env
 celerybeat-schedule.bak
 celerybeat-schedule.dat
